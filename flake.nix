@@ -94,10 +94,6 @@
                 enable = true;
                 excludes = ignoreFolders;
               };
-              yamllint = {
-                enable = true;
-                excludes = ignoreFolders ++ [ ".github" ];
-              };
             };
           };
         }

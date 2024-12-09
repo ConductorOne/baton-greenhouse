@@ -3,10 +3,14 @@ package client
 import (
 	"fmt"
 	liburl "net/url"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
+
+var findNextURL = regexp.MustCompile(`\<([^>]+)\>`)
 
 func withBasicAuth(val string) uhttp.RequestOption {
 	return uhttp.WithHeader("Authorization", val)
@@ -35,4 +39,9 @@ func urlAddQuery(url string, params map[string]interface{}) (string, error) {
 	parsed.RawQuery = p.Encode()
 
 	return parsed.String(), nil
+}
+
+func getNextLink(raw string) string {
+	found := strings.Replace(findNextURL.FindString(raw), "<", "", 1)
+	return strings.Replace(found, ">", "", 1)
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
+var DefaultHost = "https://harvest.greenhouse.io"
+
 type Client struct {
 	baseURL    string
 	user       string
@@ -22,6 +24,14 @@ func makeAuthorization(user string) string {
 	encoded := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:", user)))
 
 	return fmt.Sprintf("Basic %s", encoded)
+}
+
+func New(baseURL, username string) *Client {
+	return &Client{
+		baseURL:    baseURL,
+		user:       username,
+		httpClient: &uhttp.BaseHttpClient{},
+	}
 }
 
 func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v2.RateLimitDescription, string, error) {
@@ -73,30 +83,32 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v
 	return target, rl, nextPage, nil
 }
 
-func (c *Client) ListRoles(ctx context.Context, page string) ([]*models.Role, *v2.RateLimitDescription, error) {
+func (c *Client) ListRoles(ctx context.Context, next string) ([]*models.Role, *v2.RateLimitDescription, string, error) {
 	joinedURL, err := url.JoinPath(c.baseURL, "v1/user_roles")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	params := map[string]interface{}{
 		"per_page": 500,
-		"page":     page,
 	}
 	qurl, err := urlAddQuery(joinedURL, params)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	var target []*models.Role
+	if next != "" {
+		qurl = next
+	}
 	parsedURL, err := url.Parse(qurl)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot parse URL, error: %w", err)
+		return nil, nil, "", fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
 	request, err := c.httpClient.NewRequest(ctx, http.MethodGet, parsedURL, uhttp.WithAcceptJSONHeader(), withBasicAuth(makeAuthorization(c.user)))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	var rl *v2.RateLimitDescription
@@ -107,13 +119,15 @@ func (c *Client) ListRoles(ctx context.Context, page string) ([]*models.Role, *v
 
 	resp, err := c.httpClient.Do(request, doOptions...)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("API return with unexpected status code %d %s", resp.StatusCode, resp.Status)
+		return nil, nil, "", fmt.Errorf("API return with unexpected status code %d %s", resp.StatusCode, resp.Status)
 	}
+	// see https://developers.greenhouse.io/harvest.html#pagination
+	nextPage := getNextLink(resp.Header.Get("Link"))
 
-	return target, rl, nil
+	return target, rl, nextPage, nil
 }

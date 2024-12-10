@@ -46,6 +46,8 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 	return nil, "", nil, nil
 }
 
-func newUserBuilder() *userBuilder {
-	return &userBuilder{}
+func newUserBuilder(c *client.Client) *userBuilder {
+	return &userBuilder{
+		client: c,
+	}
 }

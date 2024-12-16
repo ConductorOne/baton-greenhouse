@@ -15,7 +15,7 @@ type roleBuilder struct {
 }
 
 func (o *roleBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
-	return nil
+	return roleResourceType
 }
 
 // List returns all the roles from the database as resource objects.

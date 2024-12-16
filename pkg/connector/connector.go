@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/conductorone/baton-greenhouse/pkg/client"
@@ -44,7 +45,10 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 
 // New returns a new instance of the connector.
 func New(ctx context.Context, username string) (*Connector, error) {
-	c := client.New(client.DefaultHost, username)
+	c, err := client.New(ctx, client.DefaultHost, username)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create a connector, error: %v", err)
+	}
 	return &Connector{
 		client: c,
 	}, nil

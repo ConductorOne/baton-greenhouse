@@ -8,7 +8,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
-func User2Resource(u *models.User, p *v2.ResourceId) (*v2.Resource, error) {
+func User2Resource(u models.User, p *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"first_name": u.Name,
 		"last_name":  u.LastName,
@@ -39,7 +39,7 @@ func User2Resource(u *models.User, p *v2.ResourceId) (*v2.Resource, error) {
 	return user, nil
 }
 
-func Users2Resources(us []*models.User, p *v2.ResourceId) ([]*v2.Resource, error) {
+func Users2Resources(us []models.User, p *v2.ResourceId) ([]*v2.Resource, error) {
 	var users []*v2.Resource
 
 	for _, u := range us {
@@ -53,7 +53,7 @@ func Users2Resources(us []*models.User, p *v2.ResourceId) ([]*v2.Resource, error
 	return users, nil
 }
 
-func Role2Resource(r *models.Role, p *v2.ResourceId) (*v2.Resource, error) {
+func Role2Resource(r models.Role, p *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"Name": r.Name,
 		"Type": r.Type,
@@ -71,7 +71,7 @@ func Role2Resource(r *models.Role, p *v2.ResourceId) (*v2.Resource, error) {
 	return role, nil
 }
 
-func Roles2Resources(rs []*models.Role, p *v2.ResourceId) ([]*v2.Resource, error) {
+func Roles2Resources(rs []models.Role, p *v2.ResourceId) ([]*v2.Resource, error) {
 	var roles []*v2.Resource
 
 	for _, r := range rs {

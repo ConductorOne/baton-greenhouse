@@ -10,6 +10,7 @@ import (
 	"github.com/conductorone/baton-greenhouse/pkg/models"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 var DefaultHost = "https://harvest.greenhouse.io"
@@ -26,15 +27,20 @@ func makeAuthorization(user string) string {
 	return fmt.Sprintf("Basic %s", encoded)
 }
 
-func New(baseURL, username string) *Client {
+func New(ctx context.Context, baseURL, username string) (*Client, error) {
+	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		baseURL:    baseURL,
 		user:       username,
-		httpClient: &uhttp.BaseHttpClient{},
-	}
+		httpClient: uhttp.NewBaseHttpClient(httpClient),
+	}, nil
 }
 
-func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v2.RateLimitDescription, string, error) {
+func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2.RateLimitDescription, string, error) {
 	joinedURL, err := url.JoinPath(c.baseURL, "v1/users")
 	if err != nil {
 		return nil, nil, "", err
@@ -48,7 +54,7 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v
 		return nil, nil, "", err
 	}
 
-	var target []*models.User
+	var target []models.User
 	if next != "" {
 		qurl = next
 	}
@@ -62,10 +68,10 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v
 		return nil, nil, "", err
 	}
 
-	var rl *v2.RateLimitDescription
+	var rl = v2.RateLimitDescription{}
 	doOptions := []uhttp.DoOption{
-		uhttp.WithRatelimitData(rl),
-		uhttp.WithJSONResponse(target),
+		uhttp.WithRatelimitData(&rl),
+		uhttp.WithJSONResponse(&target),
 	}
 
 	resp, err := c.httpClient.Do(request, doOptions...)
@@ -80,10 +86,10 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]*models.User, *v
 	// see https://developers.greenhouse.io/harvest.html#pagination
 	nextPage := getNextLink(resp.Header.Get("Link"))
 
-	return target, rl, nextPage, nil
+	return target, &rl, nextPage, nil
 }
 
-func (c *Client) ListRoles(ctx context.Context, next string) ([]*models.Role, *v2.RateLimitDescription, string, error) {
+func (c *Client) ListRoles(ctx context.Context, next string) ([]models.Role, *v2.RateLimitDescription, string, error) {
 	joinedURL, err := url.JoinPath(c.baseURL, "v1/user_roles")
 	if err != nil {
 		return nil, nil, "", err
@@ -97,7 +103,7 @@ func (c *Client) ListRoles(ctx context.Context, next string) ([]*models.Role, *v
 		return nil, nil, "", err
 	}
 
-	var target []*models.Role
+	var target []models.Role
 	if next != "" {
 		qurl = next
 	}
@@ -111,10 +117,10 @@ func (c *Client) ListRoles(ctx context.Context, next string) ([]*models.Role, *v
 		return nil, nil, "", err
 	}
 
-	var rl *v2.RateLimitDescription
+	rl := v2.RateLimitDescription{}
 	doOptions := []uhttp.DoOption{
-		uhttp.WithRatelimitData(rl),
-		uhttp.WithJSONResponse(target),
+		uhttp.WithRatelimitData(&rl),
+		uhttp.WithJSONResponse(&target),
 	}
 
 	resp, err := c.httpClient.Do(request, doOptions...)
@@ -129,5 +135,5 @@ func (c *Client) ListRoles(ctx context.Context, next string) ([]*models.Role, *v
 	// see https://developers.greenhouse.io/harvest.html#pagination
 	nextPage := getNextLink(resp.Header.Get("Link"))
 
-	return target, rl, nextPage, nil
+	return target, &rl, nextPage, nil
 }

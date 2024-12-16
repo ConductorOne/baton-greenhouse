@@ -51,6 +51,9 @@
               nil
 
               gomodifytags
+              panicparse
+
+              self.packages.${pkgs.system}.default
             ];
           };
         }
@@ -65,7 +68,7 @@
 
             src = ./.;
 
-            modSha256 = null;
+            modSha256 = "sha256-hs9KwPP+JXB7UqFoWiaBvPd/Hq8tRGGwWFo7W7RdU9w=";
             vendorHash = null;
 
             meta = with pkgs.lib; {

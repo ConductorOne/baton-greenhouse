@@ -48,6 +48,7 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 
 	params := map[string]interface{}{
 		"per_page": 500,
+		"page":     1,
 	}
 	qurl, err := urlAddQuery(joinedURL, params)
 	if err != nil {
@@ -68,7 +69,7 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 		return nil, nil, "", err
 	}
 
-	var rl = v2.RateLimitDescription{}
+	rl := v2.RateLimitDescription{}
 	doOptions := []uhttp.DoOption{
 		uhttp.WithRatelimitData(&rl),
 		uhttp.WithJSONResponse(&target),
@@ -84,9 +85,13 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 		return nil, nil, "", fmt.Errorf("API return with unexpected status code %d %s", resp.StatusCode, resp.Status)
 	}
 	// see https://developers.greenhouse.io/harvest.html#pagination
-	nextPage := getNextLink(resp.Header.Get("Link"))
+	link := &models.Link{}
+	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
+	}
 
-	return target, &rl, nextPage, nil
+	return target, &rl, link.Next, nil
 }
 
 func (c *Client) ListRoles(ctx context.Context, next string) ([]models.Role, *v2.RateLimitDescription, string, error) {
@@ -133,7 +138,11 @@ func (c *Client) ListRoles(ctx context.Context, next string) ([]models.Role, *v2
 		return nil, nil, "", fmt.Errorf("API return with unexpected status code %d %s", resp.StatusCode, resp.Status)
 	}
 	// see https://developers.greenhouse.io/harvest.html#pagination
-	nextPage := getNextLink(resp.Header.Get("Link"))
+	link := &models.Link{}
+	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
+	}
 
-	return target, &rl, nextPage, nil
+	return target, &rl, link.Next, nil
 }

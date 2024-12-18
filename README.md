@@ -8,6 +8,8 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more the proje
 
 # Getting Started
 
+To use this connector you need to provide an API key from the Harvest API. Go to Configure > Dev Center > API Credentials and make a new API Key.
+
 ## brew
 
 ```

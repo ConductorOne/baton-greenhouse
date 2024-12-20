@@ -3,6 +3,7 @@
 
   # Flake inputs
   inputs = {
+    baton.url = "github:conductorOne/baton";
     pre-commit-hooks.url = "github:cachix/git-hooks.nix";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
 
@@ -16,6 +17,7 @@
       flake-schemas,
       nixpkgs,
       pre-commit-hooks,
+      baton,
     }:
     let
       # Helpers for producing system-specific outputs
@@ -54,6 +56,7 @@
               panicparse
 
               self.packages.${pkgs.system}.default
+              baton.packages.${pkgs.system}.default
             ];
           };
         }

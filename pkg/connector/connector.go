@@ -47,7 +47,7 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 func New(ctx context.Context, username string) (*Connector, error) {
 	c, err := client.New(ctx, client.DefaultHost, username)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create a connector, error: %v", err)
+		return nil, fmt.Errorf("unable to create a connector, error: %w", err)
 	}
 	return &Connector{
 		client: c,

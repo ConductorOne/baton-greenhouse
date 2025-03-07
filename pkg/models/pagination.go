@@ -30,10 +30,10 @@ func (l *Link) UnmarshalText(text []byte) error {
 
 	for i, v := range parts {
 		if strings.Contains(v, linkNext) {
-			l.Next = string(cleanLinks.ReplaceAllString(parts[i-1], ""))
+			l.Next = cleanLinks.ReplaceAllString(parts[i-1], "")
 		}
 		if strings.Contains(v, linkLast) {
-			l.Last = string(cleanLinks.ReplaceAllString(parts[i-1], ""))
+			l.Last = cleanLinks.ReplaceAllString(parts[i-1], "")
 		}
 	}
 

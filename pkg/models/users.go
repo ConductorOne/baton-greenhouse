@@ -10,7 +10,7 @@ type User struct {
 	UpdatedAt           time.Time
 	CreatedAt           time.Time
 	Disabled            bool
-	SiteAdmin           bool
+	SiteAdmin           bool `json:"site_admin,omitempty"`
 	Emails              []string
 	EmployeeID          int
 	LinkedCandidateIDs  []int

@@ -78,8 +78,8 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, on_behalfe_of, username string) (*Connector, error) {
-	c, err := client.New(ctx, client.DefaultHost, username, on_behalfe_of)
+func New(ctx context.Context, onBehalfeOf, username string) (*Connector, error) {
+	c, err := client.New(ctx, client.DefaultHost, username, onBehalfeOf)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a connector, error: %w", err)
 	}

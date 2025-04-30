@@ -233,15 +233,14 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 
 	resp, err := c.httpClient.Do(req)
 
-	// Manejo de errores provocados por códigos HTTP como 403 o 404
 	if err != nil {
 		if resp != nil {
 			defer resp.Body.Close()
 			respBody, _ := io.ReadAll(resp.Body)
 			switch resp.StatusCode {
-			case 403:
+			case http.StatusForbidden:
 				return fmt.Errorf("forbidden (403) - likely trying to revoke a non-human user or yourself: %s", string(respBody))
-			case 404:
+			case http.StatusNotFound:
 				return fmt.Errorf("user not found (404): %s", string(respBody))
 			default:
 				return fmt.Errorf("unexpected status code %d during revoke: %s", resp.StatusCode, string(respBody))

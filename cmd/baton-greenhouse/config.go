@@ -6,12 +6,14 @@ import (
 )
 
 var (
-	usernameField = field.StringField("username", field.WithRequired(true), field.WithDescription("The username is your Greenhouse API token"))
+	usernameField   = field.StringField("username", field.WithRequired(true), field.WithDescription("The username is your Greenhouse API token"))
+	onBehalfOfField = field.StringField("on_behalf_of_email", field.WithRequired(false), field.WithDescription("Email of the Site Admin user"))
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
 	// required.
 	ConfigurationFields = []field.SchemaField{
 		usernameField,
+		onBehalfOfField,
 	}
 
 	// FieldRelationships defines relationships between the fields listed in

@@ -101,40 +101,18 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 }
 
 // GetAdminByEmail gets a site admin user by their email address.
-// It will search through all pages of users until it finds the user with the specified email.
 // If the user is not found or is not site admin, it returns an error.
-func (c *Client) GetAdminByEmail(ctx context.Context, targetEmail string) (*models.User, error) {
-	var next string
-	for {
-		users, _, nextPage, err := c.ListUsers(ctx, next)
-		if err != nil {
-			return nil, fmt.Errorf("error listing users: %w", err)
-		}
-
-		for _, user := range users {
-			// Skip non-admin users
-			if !user.SiteAdmin {
-				continue
-			}
-			// Check primary email
-			if user.PrimaryEmailAddress == targetEmail {
-				return &user, nil
-			}
-			// Check email list
-			for _, email := range user.Emails {
-				if email == targetEmail {
-					return &user, nil
-				}
-			}
-		}
-
-		if nextPage == "" {
-			break
-		}
-		next = nextPage
+func (c *Client) GetAdminByEmail(ctx context.Context, email string) (*models.User, error) {
+	user, err := c.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("user with email '%s' not found", targetEmail)
+	if !user.SiteAdmin {
+		return nil, fmt.Errorf("user with email '%s' is not a site admin", email)
+	}
+
+	return user, nil
 }
 
 // https://developers.greenhouse.io/harvest.html#post-add-user.
@@ -255,4 +233,54 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 		return fmt.Errorf("greenhouse API error (%d): %s", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
+}
+
+func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	endpoint, err := url.JoinPath(c.baseURL, "v1/users")
+	if err != nil {
+		return nil, fmt.Errorf("failed to build URL: %w", err)
+	}
+
+	params := map[string]interface{}{
+		"email":           email,
+		"user_attributes": true,
+	}
+	queryURL, err := urlAddQuery(endpoint, params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add query params: %w", err)
+	}
+
+	parsedURL, err := url.Parse(queryURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	var users []models.User
+	req, err := c.httpClient.NewRequest(
+		ctx,
+		http.MethodGet,
+		parsedURL,
+		uhttp.WithAcceptJSONHeader(),
+		withBasicAuth(makeAuthorization(c.user)),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&users))
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+	}
+
+	if len(users) == 0 {
+		return nil, fmt.Errorf("no user found with email '%s'", email)
+	}
+
+	return &users[0], nil
 }

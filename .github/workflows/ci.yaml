@@ -68,7 +68,7 @@ jobs:
       # Install any dependencies here (or delete this)
       # - name: Install postgres client
       #   run: sudo apt install postgresql-client
-      # Run any fixture setup here (or delete this)
+      # Run any fixture setup here (or delete this.)
       # - name: Import sql into postgres
       #   run: psql -h localhost --user postgres -f environment.sql
       #   env:

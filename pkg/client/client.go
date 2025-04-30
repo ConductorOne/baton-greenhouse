@@ -255,7 +255,7 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	var users []models.User
+	var users models.User
 	req, err := c.httpClient.NewRequest(
 		ctx,
 		http.MethodGet,
@@ -278,9 +278,5 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
 	}
 
-	if len(users) == 0 {
-		return nil, fmt.Errorf("no user found with email '%s'", email)
-	}
-
-	return &users[0], nil
+	return &users, nil
 }

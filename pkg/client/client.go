@@ -150,11 +150,14 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 	var created models.User
 	var apiErr models.APIError
 
-	_, err = c.httpClient.Do(
+	res, err := c.httpClient.Do(
 		request,
 		uhttp.WithJSONResponse(&created),
 		uhttp.WithErrorResponse(&apiErr),
 	)
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
 	if err != nil {
 		if len(apiErr.Errors) > 0 {
 			errDetail := apiErr.Errors[0].Message
@@ -218,11 +221,14 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	var created models.User
 	var apiErr models.APIError
 
-	_, err = c.httpClient.Do(
+	res, err := c.httpClient.Do(
 		req,
 		uhttp.WithJSONResponse(&created),
 		uhttp.WithErrorResponse(&apiErr),
 	)
+	if res != nil && res.Body != nil {
+		defer res.Body.Close()
+	}
 	if err != nil {
 		if len(apiErr.Errors) > 0 {
 			errDetail := apiErr.Errors[0].Message

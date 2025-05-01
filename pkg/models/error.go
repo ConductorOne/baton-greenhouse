@@ -8,7 +8,7 @@ type APIError struct {
 	} `json:"errors"`
 }
 
-// Implement the uhttp.ErrorResponse interface
+// Implement the uhttp.ErrorResponse interface.
 func (e *APIError) Message() string {
 	if len(e.Errors) > 0 {
 		msg := e.Errors[0].Message

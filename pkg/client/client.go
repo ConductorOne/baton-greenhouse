@@ -148,19 +148,25 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 	}
 
 	var created models.User
-	doOptions := []uhttp.DoOption{
+	var apiErr models.APIError
+
+	_, err = c.httpClient.Do(
+		request,
 		uhttp.WithJSONResponse(&created),
-	}
-
-	resp, err := c.httpClient.Do(request, doOptions...)
+		uhttp.WithErrorResponse(&apiErr),
+	)
 	if err != nil {
+		if len(apiErr.Errors) > 0 {
+			errDetail := apiErr.Errors[0].Message
+			if apiErr.Errors[0].Field != "" {
+				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
+			}
+			return nil, fmt.Errorf("greenhouse API error: %s", errDetail)
+		}
+		if apiErr.APIMessage != "" {
+			return nil, fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
+		}
 		return nil, fmt.Errorf("failed to send user creation request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("greenhouse API error (%d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	return &created, nil
@@ -209,28 +215,26 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 		return fmt.Errorf("failed to build revoke request: %w", err)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	var created models.User
+	var apiErr models.APIError
 
+	_, err = c.httpClient.Do(
+		req,
+		uhttp.WithJSONResponse(&created),
+		uhttp.WithErrorResponse(&apiErr),
+	)
 	if err != nil {
-		if resp != nil {
-			defer resp.Body.Close()
-			respBody, _ := io.ReadAll(resp.Body)
-			switch resp.StatusCode {
-			case http.StatusForbidden:
-				return fmt.Errorf("forbidden (403) - likely trying to revoke a non-human user or yourself: %s", string(respBody))
-			case http.StatusNotFound:
-				return fmt.Errorf("user not found (404): %s", string(respBody))
-			default:
-				return fmt.Errorf("unexpected status code %d during revoke: %s", resp.StatusCode, string(respBody))
+		if len(apiErr.Errors) > 0 {
+			errDetail := apiErr.Errors[0].Message
+			if apiErr.Errors[0].Field != "" {
+				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
 			}
+			return fmt.Errorf("greenhouse API error: %s", errDetail)
 		}
-		return fmt.Errorf("revoke request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("greenhouse API error (%d): %s", resp.StatusCode, string(bodyBytes))
+		if apiErr.APIMessage != "" {
+			return fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
+		}
+		return fmt.Errorf("failed to send user creation request: %w", err)
 	}
 	return nil
 }

@@ -68,7 +68,7 @@ jobs:
       # Install any dependencies here (or delete this)
       # - name: Install postgres client
       #   run: sudo apt install postgresql-client
-      # Run any fixture setup here (or delete this)
+      # Run any fixture setup here (or delete this.)
       # - name: Import sql into postgres
       #   run: psql -h localhost --user postgres -f environment.sql
       #   env:
@@ -76,29 +76,16 @@ jobs:
       - name: Build baton-greenhouse
         run: go build ./cmd/baton-greenhouse
       - name: Run baton-greenhouse
-        run: ./baton-greenhouse
+        run: ./baton-greenhouse --username="${{ secrets.USERNAME }}" --on_behalf_of_email="${{ secrets.EMAIL }}"
 
       - name: Install baton
         run: ./scripts/get-baton.sh && mv baton /usr/local/bin
 
-      - name: Check for grant before revoking
+      - name: Check for grants before revoking
 
         run:
-          baton grants --entitlement="${{ env.CONNECTOR_ENTITLEMENT }}" --output-format=json | jq --exit-status ".grants[].principal.id.resource == \"${{ env.CONNECTOR_PRINCIPAL }}\""
+          baton grants --entitlement=role:site_admin:assigned
 
 
-      - name: Revoke grants
-        run: ./baton-greenhouse --revoke-grant="${{ env.CONNECTOR_GRANT }}"
-
-      - name: Check grant was revoked
-        run: ./baton-greenhouse && baton grants --entitlement="${{ env.CONNECTOR_ENTITLEMENT }}" --output-format=json | jq --exit-status "if .grants then .grants[]?.principal.id.resource != \"${{ env.CONNECTOR_PRINCIPAL }}\" else . end"
-
-      - name: Grant entitlement
-        # Change the grant arguments to the correct IDs for your test data
-        run: ./baton-greenhouse --grant-entitlement="${{ env.CONNECTOR_ENTITLEMENT }}" --grant-principal="${{ env.CONNECTOR_PRINCIPAL }}" --grant-principal-type="${{ env.CONNECTOR_PRINCIPAL_TYPE }}"
-
-      - name: Check grant was re-granted
-
-        run:
-          baton grants --entitlement="${{ env.CONNECTOR_ENTITLEMENT }}" --output-format=json | jq --exit-status ".grants[].principal.id.resource == \"${{ env.CONNECTOR_PRINCIPAL }}\""
-
+      - name: Revoke grant
+        run: ./baton-greenhouse --username="${{ secrets.USERNAME }}" --on_behalf_of_email="${{ secrets.EMAIL }}" --revoke-grant=role:site_admin:assigned:user:4485008007

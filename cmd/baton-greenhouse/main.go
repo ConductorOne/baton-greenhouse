@@ -48,7 +48,7 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, v.GetString(usernameField.FieldName))
+	cb, err := connector.New(ctx, v.GetString(onBehalfOfField.FieldName), v.GetString(usernameField.FieldName))
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

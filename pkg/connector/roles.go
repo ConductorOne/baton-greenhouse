@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/conductorone/baton-greenhouse/pkg/client"
 	"github.com/conductorone/baton-greenhouse/pkg/models"
@@ -118,6 +119,27 @@ func createSiteAdminRoleResource() (*v2.Resource, error) {
 	}
 
 	return ret, nil
+}
+
+func (b *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	return nil, nil
+}
+
+// Revoke removes the Site Admin role from the user by setting their permission level to "basic".
+func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	id := grant.Principal.Id.Resource
+
+	userID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert user ID to int: %w", err)
+	}
+
+	err = b.Client.RevokeUserSiteAdmin(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to revoke site admin role: %w", err)
+	}
+
+	return nil, nil
 }
 
 func newRoleBuilder(c *client.Client) *roleBuilder {

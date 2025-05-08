@@ -63,12 +63,12 @@ func (b *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 
 	for _, user := range users {
 		if user.SiteAdmin {
-			userResource, err := parseIntoUserResource(user)
-			if err != nil {
-				return nil, "", nil, err
+			userId := &v2.ResourceId{
+				ResourceType: userResourceType.Id,
+				Resource:     strconv.Itoa(user.ID),
 			}
 
-			membershipGrant := grant.NewGrant(resource, rolePermissionName, userResource.Id)
+			membershipGrant := grant.NewGrant(resource, rolePermissionName, userId)
 			ret = append(ret, membershipGrant)
 		}
 	}
@@ -82,7 +82,7 @@ func (b *roleBuilder) listAllUsers(ctx context.Context) ([]models.User, error) {
 	for {
 		users, _, nextToken, err := b.Client.ListUsers(ctx, nextPageToken)
 		if err != nil {
-			return nil, fmt.Errorf("error loading users cache, error: %w", err)
+			return nil, err
 		}
 
 		listedUsers = append(listedUsers, users...)

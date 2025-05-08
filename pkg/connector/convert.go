@@ -2,7 +2,6 @@ package connector
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/conductorone/baton-greenhouse/pkg/models"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -34,7 +33,7 @@ func User2Resource(u models.User, p *v2.ResourceId) (*v2.Resource, error) {
 		resource.WithParentResourceID(p),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot make user resource from user «%s %s» (id «%s»)", u.Name, u.LastName, strconv.Itoa(u.ID))
+		return nil, fmt.Errorf("cannot make user resource from user «%s %s» (id «%d»)", u.Name, u.LastName, u.ID)
 	}
 
 	return user, nil

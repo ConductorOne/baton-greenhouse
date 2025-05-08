@@ -63,7 +63,7 @@ func (b *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 
 	for _, user := range users {
 		if user.SiteAdmin {
-			userResource, err := User2Resource(user, nil)
+			userResource, err := ParseIntoUserResource(user)
 			if err != nil {
 				return nil, "", nil, err
 			}

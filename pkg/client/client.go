@@ -122,10 +122,11 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 	}
 
 	var created models.User
-	_, err = c.doRequest(ctx, http.MethodPost, parsedURL, &onBehalfOfID, body, &created, nil)
+	resp, err := c.doRequest(ctx, http.MethodPost, parsedURL, &onBehalfOfID, body, &created, nil)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	return &created, nil
 }
@@ -158,10 +159,11 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("failed to get user by email: %w", err)
 	}
-	_, err = c.doRequest(ctx, http.MethodPatch, parsedURL, &user.ID, body, nil, nil)
+	resp, err := c.doRequest(ctx, http.MethodPatch, parsedURL, &user.ID, body, nil, nil)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -187,14 +189,23 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User
 	}
 
 	var user models.User
-	_, err = c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &user, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &user, nil)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	return &user, nil
 }
 
+// doRequest builds and sends an HTTP request to the Greenhouse API with the given method, URL,
+// optional "on-behalf-of" header, and request body. It unmarshals the JSON response into the
+// provided target and handles Greenhouse-specific API error formatting.
+//
+// The HTTP response body is automatically read and closed inside the underlying HTTP client,
+// so callers do not need to call resp.Body.Close() manually.
+//
+// If a rate limit description object is provided, it is populated with rate limit data from the response.
 func (c *Client) doRequest(
 	ctx context.Context,
 	method string,

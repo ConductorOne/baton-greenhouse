@@ -16,44 +16,47 @@ type userBuilder struct {
 	client *client.Client
 }
 
-func newUserBuilder(c *client.Client) *userBuilder {
-	return &userBuilder{
-		client: c,
-	}
-}
-
-func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
+func (o *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return userResourceType
 }
 
-func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	list, rl, next, err := o.client.ListUsers(ctx, pToken.Token)
+func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	var userResources []*v2.Resource
+
+	users, rl, next, err := o.client.ListUsers(ctx, pToken.Token)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("cannot list users, error: %w", err)
 	}
-	users, err := Users2Resources(list, parentResourceID)
-	if err != nil {
-		return nil, "", nil, err
+
+	for _, user := range users {
+		userResource, err := parseIntoUserResource(user)
+		if err != nil {
+			return nil, "", nil, err
+		}
+
+		userResources = append(userResources, userResource)
 	}
 
 	var anno annotations.Annotations
 	anno.WithRateLimiting(rl)
 
-	return users, next, anno, nil
+	return userResources, next, anno, nil
 }
 
-func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+// Entitlements always returns an empty slice for users.
+func (o *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	return nil, "", nil, nil
 }
 
-func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+// Grants always returns an empty slice for users since they don't have any entitlements.
+func (o *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	return nil, "", nil, nil
 }
 
 // CreateAccountCapabilityDetails returns the account provisioning capabilities of this connector.
 // In this case, only account creation without password is supported.
 func (o *userBuilder) CreateAccountCapabilityDetails(
-	ctx context.Context,
+	_ context.Context,
 ) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
 	return &v2.CredentialDetailsAccountProvisioning{
 		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
@@ -99,7 +102,7 @@ func (o *userBuilder) CreateAccount(
 		return nil, nil, nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	resource, err := resource.NewUserResource(
+	res, err := resource.NewUserResource(
 		firstName+" "+lastName,
 		userResourceType,
 		createdUser.ID,
@@ -117,5 +120,11 @@ func (o *userBuilder) CreateAccount(
 		return nil, nil, nil, fmt.Errorf("failed to build resource: %w", err)
 	}
 
-	return &v2.CreateAccountResponse_SuccessResult{Resource: resource}, nil, nil, nil
+	return &v2.CreateAccountResponse_SuccessResult{Resource: res}, nil, nil, nil
+}
+
+func newUserBuilder(c *client.Client) *userBuilder {
+	return &userBuilder{
+		client: c,
+	}
 }

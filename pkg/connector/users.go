@@ -29,7 +29,7 @@ func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 	}
 
 	for _, user := range users {
-		userResource, err := ParseIntoUserResource(user)
+		userResource, err := parseIntoUserResource(user)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -56,7 +56,7 @@ func (o *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.To
 // CreateAccountCapabilityDetails returns the account provisioning capabilities of this connector.
 // In this case, only account creation without password is supported.
 func (o *userBuilder) CreateAccountCapabilityDetails(
-	ctx context.Context,
+	_ context.Context,
 ) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
 	return &v2.CredentialDetailsAccountProvisioning{
 		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{

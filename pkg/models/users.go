@@ -8,8 +8,8 @@ type User struct {
 	FirstName           string       `json:"first_name"`
 	LastName            string       `json:"last_name"`
 	PrimaryEmailAddress string       `json:"primary_email_address"`
-	UpdatedAt           time.Time    `json:"updated_at"`
-	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at,omitempty"`
+	CreatedAt           time.Time    `json:"created_at,omitempty"`
 	Disabled            bool         `json:"disabled"`
 	SiteAdmin           bool         `json:"site_admin,omitempty"`
 	Emails              []string     `json:"emails,omitempty"`

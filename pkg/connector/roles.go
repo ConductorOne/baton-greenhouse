@@ -121,7 +121,7 @@ func createSiteAdminRoleResource() (*v2.Resource, error) {
 	return ret, nil
 }
 
-func (b *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+func (b *roleBuilder) Grant(_ context.Context, _ *v2.Resource, _ *v2.Entitlement) (annotations.Annotations, error) {
 	return nil, nil
 }
 

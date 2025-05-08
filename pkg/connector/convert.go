@@ -19,7 +19,7 @@ func ParseIntoUserResource(user models.User) (*v2.Resource, error) {
 		resource.WithUserProfile(profile),
 		resource.WithEmail(user.PrimaryEmailAddress, true),
 	}
-	
+
 	if user.Disabled {
 		options = append(options, resource.WithStatus(v2.UserTrait_Status_STATUS_DISABLED))
 	} else {

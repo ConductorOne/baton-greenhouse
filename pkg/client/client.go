@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -60,36 +59,24 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 	if err != nil {
 		return nil, nil, "", err
 	}
-
-	var target []models.User
 	if next != "" {
 		qurl = next
 	}
+
 	parsedURL, err := url.Parse(qurl)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
-	request, err := c.httpClient.NewRequest(ctx, http.MethodGet, parsedURL, uhttp.WithAcceptJSONHeader(), withBasicAuth(makeAuthorization(c.user)))
-	if err != nil {
-		return nil, nil, "", err
-	}
+	var users []models.User
+	rl := &v2.RateLimitDescription{}
 
-	rl := v2.RateLimitDescription{}
-	doOptions := []uhttp.DoOption{
-		uhttp.WithRatelimitData(&rl),
-		uhttp.WithJSONResponse(&target),
-	}
-
-	resp, err := c.httpClient.Do(request, doOptions...)
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &users, rl)
 	if err != nil {
 		return nil, nil, "", err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, nil, "", fmt.Errorf("API return with unexpected status code %d %s", resp.StatusCode, resp.Status)
-	}
 	// see https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
 	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
@@ -97,7 +84,7 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 		return nil, nil, "", fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
 	}
 
-	return target, &rl, link.Next, nil
+	return users, rl, link.Next, nil
 }
 
 // GetAdminByEmail gets a site admin user by their email address.
@@ -134,43 +121,12 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	request, err := c.httpClient.NewRequest(
-		ctx,
-		http.MethodPost,
-		parsedURL,
-		uhttp.WithJSONBody(body),
-		uhttp.WithHeader("Content-Type", "application/json"),
-		uhttp.WithHeader("Authorization", makeAuthorization(c.user)),
-		uhttp.WithHeader("On-Behalf-Of", strconv.Itoa(onBehalfOfID)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build request: %w", err)
-	}
-
 	var created models.User
-	var apiErr models.APIError
-
-	res, err := c.httpClient.Do(
-		request,
-		uhttp.WithJSONResponse(&created),
-		uhttp.WithErrorResponse(&apiErr),
-	)
-	if res != nil && res.Body != nil {
-		defer res.Body.Close()
-	}
+	resp, err := c.doRequest(ctx, http.MethodPost, parsedURL, &onBehalfOfID, body, &created, nil)
 	if err != nil {
-		if len(apiErr.Errors) > 0 {
-			errDetail := apiErr.Errors[0].Message
-			if apiErr.Errors[0].Field != "" {
-				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
-			}
-			return nil, fmt.Errorf("greenhouse API error: %s", errDetail)
-		}
-		if apiErr.APIMessage != "" {
-			return nil, fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
-		}
-		return nil, fmt.Errorf("failed to send user creation request: %w", err)
+		return nil, err
 	}
+	defer resp.Body.Close()
 
 	return &created, nil
 }
@@ -203,45 +159,12 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("failed to get user by email: %w", err)
 	}
-
-	req, err := c.httpClient.NewRequest(
-		ctx,
-		http.MethodPatch,
-		parsedURL,
-		uhttp.WithJSONBody(body),
-		uhttp.WithAcceptJSONHeader(),
-		withBasicAuth(makeAuthorization(c.user)),
-		uhttp.WithHeader("On-Behalf-Of", strconv.Itoa(user.ID)),
-		uhttp.WithHeader("Content-Type", "application/json"),
-	)
+	resp, err := c.doRequest(ctx, http.MethodPatch, parsedURL, &user.ID, body, nil, nil)
 	if err != nil {
-		return fmt.Errorf("failed to build revoke request: %w", err)
+		return err
 	}
+	defer resp.Body.Close()
 
-	var created models.User
-	var apiErr models.APIError
-
-	res, err := c.httpClient.Do(
-		req,
-		uhttp.WithJSONResponse(&created),
-		uhttp.WithErrorResponse(&apiErr),
-	)
-	if res != nil && res.Body != nil {
-		defer res.Body.Close()
-	}
-	if err != nil {
-		if len(apiErr.Errors) > 0 {
-			errDetail := apiErr.Errors[0].Message
-			if apiErr.Errors[0].Field != "" {
-				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
-			}
-			return fmt.Errorf("greenhouse API error: %s", errDetail)
-		}
-		if apiErr.APIMessage != "" {
-			return fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
-		}
-		return fmt.Errorf("failed to send user creation request: %w", err)
-	}
 	return nil
 }
 
@@ -265,28 +188,75 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	var users models.User
-	req, err := c.httpClient.NewRequest(
-		ctx,
-		http.MethodGet,
-		parsedURL,
-		uhttp.WithAcceptJSONHeader(),
-		withBasicAuth(makeAuthorization(c.user)),
-	)
+	var user models.User
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &user, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&users))
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+	return &user, nil
+}
+
+// doRequest builds and sends an HTTP request to the Greenhouse API with the given method, URL,
+// optional "on-behalf-of" header, and request body. It unmarshals the JSON response into the
+// provided target and handles Greenhouse-specific API error formatting.
+//
+// The HTTP response body is automatically read and closed inside the underlying HTTP client,
+// so callers do not need to call resp.Body.Close() manually.
+//
+// If a rate limit description object is provided, it is populated with rate limit data from the response.
+func (c *Client) doRequest(
+	ctx context.Context,
+	method string,
+	url *url.URL,
+	onBehalfOfID *int,
+	body any,
+	target any,
+	rl *v2.RateLimitDescription,
+) (*http.Response, error) {
+	var apiErr models.APIError
+
+	opts := []uhttp.RequestOption{
+		uhttp.WithAcceptJSONHeader(),
+		withBasicAuth(makeAuthorization(c.user)),
 	}
 
-	return &users, nil
+	if onBehalfOfID != nil {
+		opts = append(opts, uhttp.WithHeader("On-Behalf-Of", strconv.Itoa(*onBehalfOfID)))
+	}
+	if body != nil {
+		opts = append(opts, uhttp.WithJSONBody(body))
+		opts = append(opts, uhttp.WithHeader("Content-Type", "application/json"))
+	}
+
+	req, err := c.httpClient.NewRequest(ctx, method, url, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build request: %w", err)
+	}
+
+	doOpts := []uhttp.DoOption{
+		uhttp.WithJSONResponse(target),
+		uhttp.WithErrorResponse(&apiErr),
+	}
+	if rl != nil {
+		doOpts = append(doOpts, uhttp.WithRatelimitData(rl))
+	}
+
+	res, err := c.httpClient.Do(req, doOpts...)
+	if err != nil {
+		if len(apiErr.Errors) > 0 {
+			errDetail := apiErr.Errors[0].Message
+			if apiErr.Errors[0].Field != "" {
+				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
+			}
+			return res, fmt.Errorf("greenhouse API error: %s", errDetail)
+		}
+		if apiErr.APIMessage != "" {
+			return res, fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
+		}
+		return res, fmt.Errorf("request failed: %w", err)
+	}
+
+	return res, nil
 }

@@ -10,13 +10,15 @@ import (
 
 func parseIntoUserResource(user models.User) (*v2.Resource, error) {
 	profile := map[string]interface{}{
-		"first_name": user.FirstName,
-		"last_name":  user.LastName,
-		"is_admin":   user.SiteAdmin,
+		"first_name":  user.FirstName,
+		"last_name":   user.LastName,
+		"employee_id": user.EmployeeID,
+		"is_admin":    user.SiteAdmin,
 	}
 
 	options := []resource.UserTraitOption{
 		resource.WithUserProfile(profile),
+		resource.WithEmployeeID(user.EmployeeID),
 		resource.WithEmail(user.PrimaryEmailAddress, true),
 	}
 

@@ -13,7 +13,7 @@ type User struct {
 	Disabled            bool         `json:"disabled"`
 	SiteAdmin           bool         `json:"site_admin,omitempty"`
 	Emails              []string     `json:"emails,omitempty"`
-	EmployeeID          int          `json:"employee_id"`
+	EmployeeID          string       `json:"employee_id"`
 	LinkedCandidateIDs  []int        `json:"linked_candidate_ids,omitempty"`
 	Offices             []Office     `json:"offices,omitempty"`
 	Departments         []Department `json:"departments,omitempty"`

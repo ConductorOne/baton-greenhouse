@@ -24,7 +24,7 @@ jobs:
         run: go build -o connector ./cmd/baton-greenhouse
 
       - name: Run and save output
-        run: ./connector capabilities > baton_capabilities.json
+        run: ./connector capabilities --username "test" > baton_capabilities.json
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9

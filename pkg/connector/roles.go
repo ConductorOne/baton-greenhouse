@@ -11,31 +11,61 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
-	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	resourceSdk "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
 type roleBuilder struct {
-	Client *client.Client
+	client *client.GreenhouseClient
 }
 
-const rolePermissionName = "assigned"
+const (
+	rolePermissionName = "assigned"
+
+	// User Roles can be type 'interviewer' or 'job_admin'.
+	roleTypeInterviewer = "interviewer"
+	roleTypeJobAdmin    = "job_admin"
+)
 
 func (b *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return roleResourceType
 }
 
-func (b *roleBuilder) List(_ context.Context, _ *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var roleResources []*v2.Resource
 
-	siteAdminResource, err := createSiteAdminRoleResource()
+	userRoles, rl, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.Token)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	for _, userRole := range userRoles {
+		// Only the roles of type "Job Admin" will be created.
+		if userRole.Type != roleTypeJobAdmin {
+			continue
+		}
+
+		// TODO: Validate Display Name.
+		// Since we cannot test this, I'm not sure if the Name that comes in the response structure it's fine to have as Display Name
+		// or if we should add a prefix like "Job Admin:" and then the user role name.
+		newRoleResource, err := createRoleResource(strconv.Itoa(userRole.ID), userRole.Name, userRole.Type)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		roleResources = append(roleResources, newRoleResource)
+	}
+
+	// Creates the Role Resource for the 'Site Admin'
+	siteAdminResource, err := createRoleResource("site_admin", "Site Admin", "site_admin")
 	if err != nil {
 		return nil, "", nil, err
 	}
 
 	roleResources = append(roleResources, siteAdminResource)
 
-	return roleResources, "", nil, nil
+	var anno annotations.Annotations
+	anno.WithRateLimiting(rl)
+
+	return roleResources, nextPageURL, anno, nil
 }
 
 func (b *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
@@ -52,73 +82,9 @@ func (b *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 	return roleEntitlements, "", nil, nil
 }
 
-func (b *roleBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	var ret []*v2.Grant
-	var err error
-
-	users, err := b.listAllUsers(ctx)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	for _, user := range users {
-		if user.SiteAdmin {
-			userId := &v2.ResourceId{
-				ResourceType: userResourceType.Id,
-				Resource:     strconv.Itoa(user.ID),
-			}
-
-			membershipGrant := grant.NewGrant(resource, rolePermissionName, userId)
-			ret = append(ret, membershipGrant)
-		}
-	}
-
-	return ret, "", nil, nil
-}
-
-func (b *roleBuilder) listAllUsers(ctx context.Context) ([]models.User, error) {
-	var listedUsers []models.User
-	var nextPageToken string
-	for {
-		users, _, nextToken, err := b.Client.ListUsers(ctx, nextPageToken)
-		if err != nil {
-			return nil, err
-		}
-
-		listedUsers = append(listedUsers, users...)
-
-		if nextToken == "" {
-			break
-		}
-		nextPageToken = nextToken
-	}
-
-	return listedUsers, nil
-}
-
-func createSiteAdminRoleResource() (*v2.Resource, error) {
-	id := "site_admin"
-	name := "Site Admin"
-	profile := map[string]interface{}{
-		"id":   id,
-		"name": name,
-	}
-
-	roleTraits := []resourceSdk.RoleTraitOption{
-		resourceSdk.WithRoleProfile(profile),
-	}
-
-	ret, err := resourceSdk.NewRoleResource(
-		name,
-		roleResourceType,
-		id,
-		roleTraits,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return ret, nil
+// Grants function is implemented in the users.go file.
+func (b *roleBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	return nil, "", nil, nil
 }
 
 func (b *roleBuilder) Grant(_ context.Context, _ *v2.Resource, _ *v2.Entitlement) (annotations.Annotations, error) {
@@ -134,7 +100,7 @@ func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 		return nil, fmt.Errorf("failed to convert user ID to int: %w", err)
 	}
 
-	err = b.Client.RevokeUserSiteAdmin(ctx, userID)
+	err = b.client.RevokeUserSiteAdmin(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to revoke site admin role: %w", err)
 	}
@@ -142,8 +108,41 @@ func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 	return nil, nil
 }
 
-func newRoleBuilder(c *client.Client) *roleBuilder {
+func extractUniqueUserRolesIDs(jobPermissions []models.JobPermission) []int {
+	userRoleIDs := make(map[int]struct{})
+	for _, jobPermission := range jobPermissions {
+		userRoleIDs[jobPermission.UserRoleID] = struct{}{}
+	}
+
+	var IDs []int
+	for ID := range userRoleIDs {
+		IDs = append(IDs, ID)
+	}
+
+	return IDs
+}
+
+func createRoleResource(roleID, name, roleType string) (*v2.Resource, error) {
+	profile := map[string]interface{}{
+		"id":   roleID,
+		"name": name,
+		"type": roleType,
+	}
+
+	roleTraits := []resourceSdk.RoleTraitOption{
+		resourceSdk.WithRoleProfile(profile),
+	}
+
+	return resourceSdk.NewRoleResource(
+		name,
+		roleResourceType,
+		roleID,
+		roleTraits,
+	)
+}
+
+func newRoleBuilder(c *client.GreenhouseClient) *roleBuilder {
 	return &roleBuilder{
-		Client: c,
+		client: c,
 	}
 }

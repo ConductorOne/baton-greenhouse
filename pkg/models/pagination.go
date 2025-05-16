@@ -14,8 +14,8 @@ var (
 )
 
 type Link struct {
-	Next string
-	Last string
+	Next string `json:"next,omitempty"`
+	Last string `json:"last,omitempty"`
 }
 
 func (l *Link) UnmarshalText(text []byte) error {

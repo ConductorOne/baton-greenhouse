@@ -44,3 +44,24 @@ type Department struct {
 type Location struct {
 	Name string `json:"name,omitempty"`
 }
+
+type UserRole struct {
+	ID   int    `json:"id,omitempty"`
+	Type string `json:"type,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+type JobPermission struct {
+	ID         int `json:"id,omitempty"`
+	JobID      int `json:"job_id,omitempty"`
+	UserRoleID int `json:"user_role_id,omitempty"`
+}
+
+type FutureJobPermission struct {
+	ID                   int    `json:"id,omitempty"`
+	OfficeID             int    `json:"office_id,omitempty"`
+	ExternalOfficeID     string `json:"external_office_id,omitempty"`
+	DepartmentID         int    `json:"department_id,omitempty"`
+	ExternalDepartmentID string `json:"external_department_id,omitempty"`
+	UserRoleID           int    `json:"user_role_id,omitempty"`
+}

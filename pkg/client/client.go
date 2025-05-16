@@ -219,12 +219,13 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID 
 
 	// Iterating for pagination.
 	for {
+		var jobPermissionsPage []models.JobPermission
 		parsedURL, err := url.Parse(queryURL)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse URL, error: %w", err)
 		}
 
-		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &jobPermissions, rl)
+		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &jobPermissionsPage, rl)
 		if err != nil {
 			return nil, err
 		}
@@ -237,6 +238,7 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID 
 			return nil, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
 		}
 
+		jobPermissions = append(jobPermissions, jobPermissionsPage...)
 		nextPageURL = link.Next
 		if nextPageURL == "" {
 			break

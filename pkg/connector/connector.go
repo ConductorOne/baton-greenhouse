@@ -12,7 +12,7 @@ import (
 )
 
 type Connector struct {
-	client *client.Client
+	client *client.GreenhouseClient
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
@@ -78,8 +78,8 @@ func (d *Connector) Validate(_ context.Context) (annotations.Annotations, error)
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, onBehalfeOf, username string) (*Connector, error) {
-	c, err := client.New(ctx, client.DefaultHost, username, onBehalfeOf)
+func New(ctx context.Context, onBehalfOf, username string) (*Connector, error) {
+	c, err := client.New(ctx, username, onBehalfOf)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create a connector, error: %w", err)
 	}

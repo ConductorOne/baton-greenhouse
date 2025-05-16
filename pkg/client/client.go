@@ -14,10 +14,15 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
-var DefaultHost = "https://harvest.greenhouse.io"
+const (
+	baseURL = "https://harvest.greenhouse.io"
 
-type Client struct {
-	baseURL         string
+	usersEPv1              = "v1/users"
+	userRolesEPv1          = "v1/user_roles"
+	userJobPermissionsEPv1 = "%d/permissions/jobs"
+)
+
+type GreenhouseClient struct {
 	user            string
 	onBehalfOfEmail string
 	httpClient      *uhttp.BaseHttpClient
@@ -29,23 +34,9 @@ func makeAuthorization(user string) string {
 	return fmt.Sprintf("Basic %s", encoded)
 }
 
-func New(ctx context.Context, baseURL, username, onBehalfOfEmail string) (*Client, error) {
-	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
-	if err != nil {
-		return nil, err
-	}
-
-	return &Client{
-		baseURL:         baseURL,
-		user:            username,
-		onBehalfOfEmail: onBehalfOfEmail,
-		httpClient:      uhttp.NewBaseHttpClient(httpClient),
-	}, nil
-}
-
-// https://developers.greenhouse.io/harvest.html#get-list-users.
-func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2.RateLimitDescription, string, error) {
-	joinedURL, err := url.JoinPath(c.baseURL, "v1/users")
+// ListUsers implemented based on the docs https://developers.greenhouse.io/harvest.html#get-list-users.
+func (c *GreenhouseClient) ListUsers(ctx context.Context, next string) ([]models.User, *v2.RateLimitDescription, string, error) {
+	joinedURL, err := url.JoinPath(baseURL, usersEPv1)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -89,7 +80,7 @@ func (c *Client) ListUsers(ctx context.Context, next string) ([]models.User, *v2
 
 // GetAdminByEmail gets a site admin user by their email address.
 // If the user is not found or is not site admin, it returns an error.
-func (c *Client) GetAdminByEmail(ctx context.Context, email string) (*models.User, error) {
+func (c *GreenhouseClient) GetAdminByEmail(ctx context.Context, email string) (*models.User, error) {
 	user, err := c.GetUserByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -103,7 +94,7 @@ func (c *Client) GetAdminByEmail(ctx context.Context, email string) (*models.Use
 }
 
 // https://developers.greenhouse.io/harvest.html#post-add-user.
-func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email, firstName, lastName string) (*models.User, error) {
+func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID int, email, firstName, lastName string) (*models.User, error) {
 	body := map[string]interface{}{
 		"first_name":        firstName,
 		"last_name":         lastName,
@@ -111,7 +102,7 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 		"send_email_invite": true,
 	}
 
-	endpoint, err := url.JoinPath(c.baseURL, "v1/users")
+	endpoint, err := url.JoinPath(baseURL, usersEPv1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to join path for user creation: %w", err)
 	}
@@ -131,13 +122,13 @@ func (c *Client) CreateUserAccount(ctx context.Context, onBehalfOfID int, email,
 	return &created, nil
 }
 
-func (c *Client) GetOnBehalfOfEmail() string {
+func (c *GreenhouseClient) GetOnBehalfOfEmail() string {
 	return c.onBehalfOfEmail
 }
 
 // RevokeUserSiteAdmin changes the permission level of a user to "basic".
 // https://developers.greenhouse.io/harvest.html#patch-change-user-permission-level.
-func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
+func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	body := map[string]interface{}{
 		"user": map[string]int{
 			"user_id": id,
@@ -145,7 +136,7 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 		"level": "basic",
 	}
 
-	endpoint, err := url.JoinPath(c.baseURL, "v1/users/permission_level")
+	endpoint, err := url.JoinPath(baseURL, "v1/users/permission_level")
 	if err != nil {
 		return fmt.Errorf("failed to join path for revoke: %w", err)
 	}
@@ -168,8 +159,8 @@ func (c *Client) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	return nil
 }
 
-func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	endpoint, err := url.JoinPath(c.baseURL, "v1/users")
+func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	endpoint, err := url.JoinPath(baseURL, usersEPv1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL: %w", err)
 	}
@@ -198,15 +189,141 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*models.User
 	return &user, nil
 }
 
+// GetJobPermissionsOfAUser receives the ID of a User and requests all the JobPermissions it has.
+// Docs link: https://developers.greenhouse.io/harvest.html#get-list-job-permissions
+//
+// According to the documentation, this endpoint is only intended for use with 'Job Admin'
+// and/or 'Interviewer' users, as these roles are assigned on a per-job basis.
+// Users that are 'Site Admins' have permissions on all public jobs and will return an empty array.
+// 'Basic users' cannot be assigned to any jobs and will also return an empty array.
+//
+// This function handles pagination.
+func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID int) ([]models.JobPermission, error) {
+	var jobPermissions []models.JobPermission
+	nextPageURL := ""
+	rl := &v2.RateLimitDescription{}
+
+	endpointURL, err := url.JoinPath(baseURL, usersEPv1, fmt.Sprintf(userJobPermissionsEPv1, userID))
+	if err != nil {
+		return nil, err
+	}
+
+	params := map[string]interface{}{
+		"per_page": 500,
+		"page":     1,
+	}
+	queryURL, err := urlAddQuery(endpointURL, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// Iterating for pagination.
+	for {
+		parsedURL, err := url.Parse(queryURL)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse URL, error: %w", err)
+		}
+
+		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &jobPermissions, rl)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
+		link := &models.Link{}
+		err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
+		}
+
+		nextPageURL = link.Next
+		if nextPageURL == "" {
+			break
+		}
+
+		queryURL = nextPageURL
+	}
+
+	return jobPermissions, nil
+}
+
+// ListUserRoles - Docs link: https://developers.greenhouse.io/harvest.html#get-list-user-roles
+func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string) ([]models.UserRole, *v2.RateLimitDescription, string, error) {
+	var userRoles []models.UserRole
+	rl := &v2.RateLimitDescription{}
+
+	endpointURL, err := url.JoinPath(baseURL, userRolesEPv1)
+	if err != nil {
+		return nil, nil, "", err
+	}
+
+	params := map[string]interface{}{
+		"per_page": 500,
+		"page":     1,
+	}
+	queryURL, err := urlAddQuery(endpointURL, params)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	if nextPageURL != "" {
+		queryURL = nextPageURL
+	}
+
+	parsedURL, err := url.Parse(queryURL)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot parse URL, error: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userRoles, rl)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	defer resp.Body.Close()
+
+	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
+	link := &models.Link{}
+	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
+	}
+
+	return userRoles, rl, link.Next, nil
+}
+
+// RetrieveUserData - Docs link: https://developers.greenhouse.io/harvest.html#get-retrieve-user
+func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) (*models.User, error) {
+	var userData *models.User
+	rl := &v2.RateLimitDescription{}
+
+	endpointURL, err := url.JoinPath(baseURL, usersEPv1, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedURL, err := url.Parse(endpointURL)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse URL, error: %w", err)
+	}
+
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userData, rl)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return userData, nil
+}
+
 // doRequest builds and sends an HTTP request to the Greenhouse API with the given method, URL,
-// optional "on-behalf-of" header, and request body. It unmarshals the JSON response into the
+// optional "on-behalf-of" header, and request body. It unmarshalls the JSON response into the
 // provided target and handles Greenhouse-specific API error formatting.
 //
 // The HTTP response body is automatically read and closed inside the underlying HTTP client,
 // so callers do not need to call resp.Body.Close() manually.
 //
 // If a rate limit description object is provided, it is populated with rate limit data from the response.
-func (c *Client) doRequest(
+func (c *GreenhouseClient) doRequest(
 	ctx context.Context,
 	method string,
 	url *url.URL,
@@ -259,4 +376,17 @@ func (c *Client) doRequest(
 	}
 
 	return res, nil
+}
+
+func New(ctx context.Context, username, onBehalfOfEmail string) (*GreenhouseClient, error) {
+	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &GreenhouseClient{
+		user:            username,
+		onBehalfOfEmail: onBehalfOfEmail,
+		httpClient:      uhttp.NewBaseHttpClient(httpClient),
+	}, nil
 }

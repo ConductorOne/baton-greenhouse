@@ -204,7 +204,7 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID 
 	nextPageURL := ""
 	rl := &v2.RateLimitDescription{}
 
-	endpointURL, err := url.JoinPath(baseURL, usersEPv1, fmt.Sprintf(userJobPermissionsEPv1, userID))
+	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userJobPermissionsEPv1, userID))
 	if err != nil {
 		return nil, err
 	}

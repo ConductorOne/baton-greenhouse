@@ -79,7 +79,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *
 			return nil, "", nil, err
 		}
 
-		uniqueUserRoleIDs := extractUniqueUserRolesIDs(userJobPermissions)
+		uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
+		if err != nil {
+			return nil, "", nil, err
+		}
 		for _, userRoleID := range uniqueUserRoleIDs {
 			roleResource := &v2.Resource{
 				Id: &v2.ResourceId{
@@ -92,7 +95,29 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *
 			roleGrants = append(roleGrants, membershipGrant)
 		}
 
-		// TODO: Include the Grants for Future Jobs? Analyze.
+		// Retrieves the list of 'Future Job Permissions' assigned to the user.
+		// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
+		userFutureJobPermissions, err := b.client.GetFutureJobPermissionsOfAUser(ctx, user.ID)
+		if err != nil {
+			return nil, "", nil, err
+		}
+
+		uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
+		if err != nil {
+			return nil, "", nil, err
+		}
+		for _, userRoleID := range uniqueUserRoleIDs {
+			futureRoleUserID := fmt.Sprintf("future-job:%d", userRoleID)
+			roleResource := &v2.Resource{
+				Id: &v2.ResourceId{
+					ResourceType: roleResourceType.Id,
+					Resource:     futureRoleUserID,
+				},
+			}
+
+			membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
+			roleGrants = append(roleGrants, membershipGrant)
+		}
 	}
 
 	return roleGrants, "", nil, nil

@@ -17,9 +17,10 @@ import (
 const (
 	baseURL = "https://harvest.greenhouse.io"
 
-	usersEPv1              = "v1/users"
-	userRolesEPv1          = "v1/user_roles"
-	userJobPermissionsEPv1 = "%d/permissions/jobs"
+	usersEPv1                    = "v1/users"
+	userRolesEPv1                = "v1/user_roles"
+	userJobPermissionsEPv1       = "v1/users/%d/permissions/jobs"
+	userFutureJobPermissionsEPv1 = "v1/users/%d/permissions/future_jobs"
 )
 
 type GreenhouseClient struct {
@@ -189,7 +190,7 @@ func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*m
 	return &user, nil
 }
 
-// GetJobPermissionsOfAUser receives the ID of a User and requests all the JobPermissions it has.
+// GetJobPermissionsOfAUser receives the ID of a User and requests all the Job Permissions it has.
 // Docs link: https://developers.greenhouse.io/harvest.html#get-list-job-permissions
 //
 // According to the documentation, this endpoint is only intended for use with 'Job Admin'
@@ -217,6 +218,8 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID 
 		return nil, err
 	}
 
+	// TODO: Remove this 'inner' iteration and elevate the nextPageURL to the Grants function.
+	//  Handling pagination like this could be really problematic when errors or rate-limits occurs
 	// Iterating for pagination.
 	for {
 		var jobPermissionsPage []models.JobPermission
@@ -248,6 +251,64 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID 
 	}
 
 	return jobPermissions, nil
+}
+
+// GetFutureJobPermissionsOfAUser receives the ID of a User and requests all the Future Job Permissions it has.
+// Docs link: https://developers.greenhouse.io/harvest.html#get-list-future-job-permissions
+//
+// This function handles pagination.
+func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, userID int) ([]models.FutureJobPermission, error) {
+	var futureJobPermissions []models.FutureJobPermission
+	nextPageURL := ""
+	rl := &v2.RateLimitDescription{}
+
+	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userFutureJobPermissionsEPv1, userID))
+	if err != nil {
+		return nil, err
+	}
+
+	params := map[string]interface{}{
+		"per_page": 500,
+		"page":     1,
+	}
+	queryURL, err := urlAddQuery(endpointURL, params)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Remove this 'inner' iteration and elevate the nextPageURL to the Grants function.
+	//  Handling pagination like this could be really problematic when errors or rate-limits occurs
+	// Iterating for pagination.
+	for {
+		var futureJobPermissionsPage []models.FutureJobPermission
+		parsedURL, err := url.Parse(queryURL)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse URL, error: %w", err)
+		}
+
+		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &futureJobPermissionsPage, rl)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
+		link := &models.Link{}
+		err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+		if err != nil {
+			return nil, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
+		}
+
+		futureJobPermissions = append(futureJobPermissions, futureJobPermissionsPage...)
+		nextPageURL = link.Next
+		if nextPageURL == "" {
+			break
+		}
+
+		queryURL = nextPageURL
+	}
+
+	return futureJobPermissions, nil
 }
 
 // ListUserRoles - Docs link: https://developers.greenhouse.io/harvest.html#get-list-user-roles

@@ -12,6 +12,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	resourceSdk "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 type roleBuilder struct {
@@ -24,6 +26,9 @@ const (
 	// User Roles can be type 'interviewer' or 'job_admin'.
 	roleTypeInterviewer = "interviewer"
 	roleTypeJobAdmin    = "job_admin"
+
+	// This is a constant used to map the Entitlement created for the Site Admins.
+	roleTypeSiteAdmin = "site_admin"
 )
 
 func (b *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -32,7 +37,7 @@ func (b *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 
 func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var roleResources []*v2.Resource
-
+	logger := ctxzap.Extract(ctx)
 	userRoles, rl, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.Token)
 	if err != nil {
 		return nil, "", nil, err
@@ -47,15 +52,44 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		// TODO: Validate Display Name.
 		// Since we cannot test this, I'm not sure if the Name that comes in the response structure it's fine to have as Display Name
 		// or if we should add a prefix like "Job Admin:" and then the user role name.
-		newRoleResource, err := createRoleResource(strconv.Itoa(userRole.ID), userRole.Name, userRole.Type)
+		newRoleResource, err := createRoleResource(
+			strconv.Itoa(userRole.ID),
+			userRole.Name,
+			userRole.Type,
+		)
 		if err != nil {
+			logger.Debug(
+				fmt.Sprintf("Role resource creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
+				zap.Error(err),
+			)
+			return nil, "", nil, err
+		}
+		roleResources = append(roleResources, newRoleResource)
+
+		// TODO: Validate Display Name.
+		// Create the entitlement for the future job permission.
+		// Structure: "future-job:userRoleID"
+		newRoleResource, err = createRoleResource(
+			fmt.Sprintf("future-job:%d", userRole.ID),
+			fmt.Sprintf("Future Job: %s", userRole.Name),
+			userRole.Type,
+		)
+		if err != nil {
+			logger.Debug(
+				fmt.Sprintf("Role resource (future-job) creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
+				zap.Error(err),
+			)
 			return nil, "", nil, err
 		}
 		roleResources = append(roleResources, newRoleResource)
 	}
 
 	// Creates the Role Resource for the 'Site Admin'
-	siteAdminResource, err := createRoleResource("site_admin", "Site Admin", "site_admin")
+	siteAdminResource, err := createRoleResource(
+		"site_admin",
+		"Site Admin",
+		roleTypeSiteAdmin,
+	)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -108,10 +142,22 @@ func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 	return nil, nil
 }
 
-func extractUniqueUserRolesIDs(jobPermissions []models.JobPermission) []int {
+func extractUniqueUserRolesIDs(permissionList interface{}) ([]int, error) {
 	userRoleIDs := make(map[int]struct{})
-	for _, jobPermission := range jobPermissions {
-		userRoleIDs[jobPermission.UserRoleID] = struct{}{}
+
+	switch sliceData := permissionList.(type) {
+	case []models.JobPermission:
+		for _, jobPermission := range sliceData {
+			userRoleIDs[jobPermission.UserRoleID] = struct{}{}
+		}
+
+	case []models.FutureJobPermission:
+		for _, futureJobPermission := range sliceData {
+			userRoleIDs[futureJobPermission.UserRoleID] = struct{}{}
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported data type: expected []StructA or []StructB, got %T", permissionList)
 	}
 
 	var IDs []int
@@ -119,7 +165,7 @@ func extractUniqueUserRolesIDs(jobPermissions []models.JobPermission) []int {
 		IDs = append(IDs, ID)
 	}
 
-	return IDs
+	return IDs, nil
 }
 
 func createRoleResource(roleID, name, roleType string) (*v2.Resource, error) {

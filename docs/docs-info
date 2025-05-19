@@ -5,13 +5,15 @@ While developing the connector, please fill out this form. This information is n
 1. What resources does the connector sync?
 
    This connector syncs:
-      -Users
+      - Users
+      - Roles for Job Permissions
+      - Roles for Future Job Permissions
 
 2. Can the connector provision any resources? If so, which ones? 
 
-   -Yes, this update includes account provisioning.
+   - Yes, this update includes account provisioning.
    Note: The new User will have Basic permissions
-   -Also, this update includes revoke site admin permission from existing users
+   - Also, this update includes revoke site admin permission from existing users
    Note: You can't revoke permission from a non-human identity or from yourself
 
 ## Connector credentials 

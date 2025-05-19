@@ -2,7 +2,7 @@
 
 # `baton-greenhouse` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-greenhouse.svg)](https://pkg.go.dev/github.com/conductorone/baton-greenhouse) ![main ci](https://github.com/conductorone/baton-greenhouse/actions/workflows/main.yaml/badge.svg)
 
-`baton-greenhouse` is a connector for built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
+`baton-greenhouse` is a connector for [Greenhouse](https://www.greenhouse.com/) built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
 
@@ -14,7 +14,7 @@ To use this connector you need to provide an API key from the Harvest API. Go to
 
 ```
 brew install conductorone/baton/baton conductorone/baton/baton-greenhouse
-baton-greenhouse
+baton-greenhouse --username=API_TOKEN
 baton resources
 ```
 
@@ -31,7 +31,7 @@ docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c
 go install github.com/conductorone/baton/cmd/baton@main
 go install github.com/conductorone/baton-greenhouse/cmd/baton-greenhouse@main
 
-baton-greenhouse
+baton-greenhouse --username=API_TOKEN
 
 baton resources
 ```
@@ -39,7 +39,9 @@ baton resources
 # Data Model
 
 `baton-greenhouse` will pull down information about the following resources:
-- Users
+  - Users
+  - Roles for Job Permissions
+  - Roles for Future Job Permissions
 
 # Contributing, Support and Issues
 

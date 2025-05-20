@@ -51,13 +51,20 @@ func (b *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *paginat
 }
 
 // Grants function will create the Grants for the Roles. This should upgrade performance and reduce sync time.
-func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	var roleGrants []*v2.Grant
+	var outAnnotations annotations.Annotations
 	userID := userResource.Id
 
-	user, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
+	tokens, err := client.DeserializeTokens(pToken.Token)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("cannot retrieve user: %w", err)
+		return nil, "", nil, err
+	}
+
+	user, rateLimitData, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
+	outAnnotations.WithRateLimiting(rateLimitData)
+	if err != nil {
+		return nil, "", outAnnotations, fmt.Errorf("cannot retrieve user: %w", err)
 	}
 
 	// If the user is a Site Admin, it should have that Grant and skip the other ones.
@@ -74,9 +81,11 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *
 	} else {
 		// All the Job Permissions of the user will be requested in order to create a grant for any role
 		// for which the user has at least one Job with it.
-		userJobPermissions, err := b.client.GetJobPermissionsOfAUser(ctx, user.ID)
+		userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
+		outAnnotations = annotations.Annotations{}
+		outAnnotations.WithRateLimiting(rateLimitData)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", outAnnotations, err
 		}
 
 		uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
@@ -97,9 +106,11 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *
 
 		// Retrieves the list of 'Future Job Permissions' assigned to the user.
 		// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
-		userFutureJobPermissions, err := b.client.GetFutureJobPermissionsOfAUser(ctx, user.ID)
+		userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
+		outAnnotations = annotations.Annotations{}
+		outAnnotations.WithRateLimiting(rateLimitData)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, "", outAnnotations, err
 		}
 
 		uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
@@ -120,7 +131,17 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, _ *
 		}
 	}
 
-	return roleGrants, "", nil, nil
+	var nextToken string
+	if tokens.JobPermissionsToken == client.RequestCompleted && tokens.FutureJobPermissionsToken == client.RequestCompleted {
+		nextToken = ""
+	} else {
+		nextToken, err = client.SerializeTokens(tokens)
+		if err != nil {
+			return nil, "", outAnnotations, err
+		}
+	}
+
+	return roleGrants, nextToken, outAnnotations, nil
 }
 
 // CreateAccountCapabilityDetails returns the account provisioning capabilities of this connector.

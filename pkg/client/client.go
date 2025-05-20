@@ -21,6 +21,9 @@ const (
 	userRolesEPv1                = "v1/user_roles"
 	userJobPermissionsEPv1       = "v1/users/%d/permissions/jobs"
 	userFutureJobPermissionsEPv1 = "v1/users/%d/permissions/future_jobs"
+
+	// RequestCompleted is a placeholder for the PermissionsToken when the query is completed.
+	RequestCompleted = "request_completed_no_more_pages"
 )
 
 type GreenhouseClient struct {
@@ -197,124 +200,122 @@ func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*m
 // and/or 'Interviewer' users, as these roles are assigned on a per-job basis.
 // Users that are 'Site Admins' have permissions on all public jobs and will return an empty array.
 // 'Basic users' cannot be assigned to any jobs and will also return an empty array.
-//
-// This function handles pagination.
-func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, userID int) ([]models.JobPermission, error) {
+func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, tokens *JobPermissionPaginationTokens, userID int) ([]models.JobPermission, *v2.RateLimitDescription, error) {
 	var jobPermissions []models.JobPermission
-	nextPageURL := ""
-	rl := &v2.RateLimitDescription{}
+	var rateLimitData v2.RateLimitDescription
+	var queryURL string
+
+	if tokens.JobPermissionsToken == RequestCompleted {
+		return nil, nil, nil
+	}
 
 	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userJobPermissionsEPv1, userID))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	params := map[string]interface{}{
-		"per_page": 500,
-		"page":     1,
+	nextToken := tokens.JobPermissionsToken
+	if nextToken == "" {
+		params := map[string]interface{}{
+			"per_page": 500,
+			"page":     1,
+		}
+		queryURL, err = urlAddQuery(endpointURL, params)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		queryURL = nextToken
 	}
-	queryURL, err := urlAddQuery(endpointURL, params)
+
+	parsedURL, err := url.Parse(queryURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
-	// TODO: Remove this 'inner' iteration and elevate the nextPageURL to the Grants function.
-	//  Handling pagination like this could be really problematic when errors or rate-limits occurs
-	// Iterating for pagination.
-	for {
-		var jobPermissionsPage []models.JobPermission
-		parsedURL, err := url.Parse(queryURL)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse URL, error: %w", err)
-		}
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &jobPermissions, &rateLimitData)
+	if err != nil {
+		return nil, &rateLimitData, err
+	}
+	defer resp.Body.Close()
 
-		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &jobPermissionsPage, rl)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-
-		// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
-		link := &models.Link{}
-		err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
-		}
-
-		jobPermissions = append(jobPermissions, jobPermissionsPage...)
-		nextPageURL = link.Next
-		if nextPageURL == "" {
-			break
-		}
-
-		queryURL = nextPageURL
+	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
+	link := &models.Link{}
+	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+	if err != nil {
+		return nil, &rateLimitData, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
 	}
 
-	return jobPermissions, nil
+	if link.Next == "" {
+		tokens.JobPermissionsToken = RequestCompleted
+	} else {
+		tokens.JobPermissionsToken = link.Next
+	}
+
+	return jobPermissions, &rateLimitData, nil
 }
 
 // GetFutureJobPermissionsOfAUser receives the ID of a User and requests all the Future Job Permissions it has.
 // Docs link: https://developers.greenhouse.io/harvest.html#get-list-future-job-permissions
-//
-// This function handles pagination.
-func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, userID int) ([]models.FutureJobPermission, error) {
+func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, tokens *JobPermissionPaginationTokens, userID int) ([]models.FutureJobPermission, *v2.RateLimitDescription, error) {
 	var futureJobPermissions []models.FutureJobPermission
-	nextPageURL := ""
-	rl := &v2.RateLimitDescription{}
+	var rateLimitData v2.RateLimitDescription
+	var queryURL string
+
+	if tokens.FutureJobPermissionsToken == RequestCompleted {
+		return nil, nil, nil
+	}
 
 	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userFutureJobPermissionsEPv1, userID))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	params := map[string]interface{}{
-		"per_page": 500,
-		"page":     1,
+	nextToken := tokens.FutureJobPermissionsToken
+	if nextToken == "" {
+		params := map[string]interface{}{
+			"per_page": 500,
+			"page":     1,
+		}
+		queryURL, err = urlAddQuery(endpointURL, params)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		queryURL = nextToken
 	}
-	queryURL, err := urlAddQuery(endpointURL, params)
+
+	parsedURL, err := url.Parse(queryURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
-	// TODO: Remove this 'inner' iteration and elevate the nextPageURL to the Grants function.
-	//  Handling pagination like this could be really problematic when errors or rate-limits occurs
-	// Iterating for pagination.
-	for {
-		var futureJobPermissionsPage []models.FutureJobPermission
-		parsedURL, err := url.Parse(queryURL)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse URL, error: %w", err)
-		}
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &futureJobPermissions, &rateLimitData)
+	if err != nil {
+		return nil, &rateLimitData, err
+	}
+	defer resp.Body.Close()
 
-		resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &futureJobPermissionsPage, rl)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-
-		// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
-		link := &models.Link{}
-		err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
-		if err != nil {
-			return nil, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
-		}
-
-		futureJobPermissions = append(futureJobPermissions, futureJobPermissionsPage...)
-		nextPageURL = link.Next
-		if nextPageURL == "" {
-			break
-		}
-
-		queryURL = nextPageURL
+	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
+	link := &models.Link{}
+	err = link.UnmarshalText([]byte(resp.Header.Get("Link")))
+	if err != nil {
+		return nil, &rateLimitData, fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
 	}
 
-	return futureJobPermissions, nil
+	if link.Next == "" {
+		tokens.FutureJobPermissionsToken = RequestCompleted
+	} else {
+		tokens.FutureJobPermissionsToken = link.Next
+	}
+
+	return futureJobPermissions, &rateLimitData, nil
 }
 
 // ListUserRoles - Docs link: https://developers.greenhouse.io/harvest.html#get-list-user-roles
 func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string) ([]models.UserRole, *v2.RateLimitDescription, string, error) {
 	var userRoles []models.UserRole
-	rl := &v2.RateLimitDescription{}
+	var rateLimitData v2.RateLimitDescription
 
 	endpointURL, err := url.JoinPath(baseURL, userRolesEPv1)
 	if err != nil {
@@ -338,9 +339,9 @@ func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string
 		return nil, nil, "", fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userRoles, rl)
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userRoles, &rateLimitData)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, &rateLimitData, "", err
 	}
 	defer resp.Body.Close()
 
@@ -351,31 +352,31 @@ func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string
 		return nil, nil, "", fmt.Errorf("cannot unmarshal value of header Link, error: %w", err)
 	}
 
-	return userRoles, rl, link.Next, nil
+	return userRoles, &rateLimitData, link.Next, nil
 }
 
 // RetrieveUserData - Docs link: https://developers.greenhouse.io/harvest.html#get-retrieve-user
-func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) (*models.User, error) {
+func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) (*models.User, *v2.RateLimitDescription, error) {
 	var userData *models.User
-	rl := &v2.RateLimitDescription{}
+	var rateLimitData v2.RateLimitDescription
 
 	endpointURL, err := url.JoinPath(baseURL, usersEPv1, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	parsedURL, err := url.Parse(endpointURL)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse URL, error: %w", err)
+		return nil, nil, fmt.Errorf("cannot parse URL, error: %w", err)
 	}
 
-	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userData, rl)
+	resp, err := c.doRequest(ctx, http.MethodGet, parsedURL, nil, nil, &userData, &rateLimitData)
 	if err != nil {
-		return nil, err
+		return nil, &rateLimitData, err
 	}
 	defer resp.Body.Close()
 
-	return userData, nil
+	return userData, &rateLimitData, nil
 }
 
 // doRequest builds and sends an HTTP request to the Greenhouse API with the given method, URL,

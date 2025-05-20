@@ -21,9 +21,6 @@ const (
 	userRolesEPv1                = "v1/user_roles"
 	userJobPermissionsEPv1       = "v1/users/%d/permissions/jobs"
 	userFutureJobPermissionsEPv1 = "v1/users/%d/permissions/future_jobs"
-
-	// RequestCompleted is a placeholder for the PermissionsToken when the query is completed.
-	RequestCompleted = "request_completed_no_more_pages"
 )
 
 type GreenhouseClient struct {

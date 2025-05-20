@@ -11,6 +11,9 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
+// RequestCompleted is a placeholder for the PermissionsToken when the query is completed.
+const RequestCompleted = "request_completed_no_more_pages"
+
 var findNextURL = regexp.MustCompile(`\<([^>]+)\>`)
 
 func withBasicAuth(val string) uhttp.RequestOption {

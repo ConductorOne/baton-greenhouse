@@ -37,10 +37,14 @@ func (b *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 
 func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var roleResources []*v2.Resource
+	var outAnnotations annotations.Annotations
 	logger := ctxzap.Extract(ctx)
-	userRoles, rl, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.Token)
+	userRoles, rateLimitData, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.Token)
 	if err != nil {
-		return nil, "", nil, err
+		if rateLimitData != nil {
+			outAnnotations.WithRateLimiting(rateLimitData)
+		}
+		return nil, "", outAnnotations, err
 	}
 
 	for _, userRole := range userRoles {
@@ -96,10 +100,8 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 
 	roleResources = append(roleResources, siteAdminResource)
 
-	var anno annotations.Annotations
-	anno.WithRateLimiting(rl)
-
-	return roleResources, nextPageURL, anno, nil
+	outAnnotations.WithRateLimiting(rateLimitData)
+	return roleResources, nextPageURL, outAnnotations, nil
 }
 
 func (b *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {

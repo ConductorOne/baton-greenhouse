@@ -24,10 +24,14 @@ func (b *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 
 func (b *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var userResources []*v2.Resource
+	var outAnnotations annotations.Annotations
 
-	users, rl, next, err := b.client.ListUsers(ctx, pToken.Token)
+	users, rateLimitData, next, err := b.client.ListUsers(ctx, pToken.Token)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("cannot list users, error: %w", err)
+		if rateLimitData != nil {
+			outAnnotations.WithRateLimiting(rateLimitData)
+		}
+		return nil, "", outAnnotations, fmt.Errorf("cannot list users, error: %w", err)
 	}
 
 	for _, user := range users {
@@ -39,10 +43,9 @@ func (b *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		userResources = append(userResources, userResource)
 	}
 
-	var anno annotations.Annotations
-	anno.WithRateLimiting(rl)
+	outAnnotations.WithRateLimiting(rateLimitData)
 
-	return userResources, next, anno, nil
+	return userResources, next, outAnnotations, nil
 }
 
 // Entitlements always returns an empty slice for users.
@@ -63,7 +66,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 
 	user, rateLimitData, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("cannot retrieve user: %w", err)
+		if rateLimitData != nil {
+			outAnnotations.WithRateLimiting(rateLimitData)
+		}
+		return nil, "", outAnnotations, fmt.Errorf("cannot retrieve user: %w", err)
 	}
 	outAnnotations.WithRateLimiting(rateLimitData)
 
@@ -83,7 +89,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		// for which the user has at least one Job with it.
 		userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
 		if err != nil {
-			return nil, "", nil, err
+			if rateLimitData != nil {
+				outAnnotations.WithRateLimiting(rateLimitData)
+			}
+			return nil, "", outAnnotations, err
 		}
 		outAnnotations.WithRateLimiting(rateLimitData)
 
@@ -107,7 +116,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
 		userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
 		if err != nil {
-			return nil, "", nil, err
+			if rateLimitData != nil {
+				outAnnotations.WithRateLimiting(rateLimitData)
+			}
+			return nil, "", outAnnotations, err
 		}
 		outAnnotations.WithRateLimiting(rateLimitData)
 

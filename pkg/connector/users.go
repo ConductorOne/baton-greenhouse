@@ -62,10 +62,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 	}
 
 	user, rateLimitData, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
-	outAnnotations.WithRateLimiting(rateLimitData)
 	if err != nil {
-		return nil, "", outAnnotations, fmt.Errorf("cannot retrieve user: %w", err)
+		return nil, "", nil, fmt.Errorf("cannot retrieve user: %w", err)
 	}
+	outAnnotations.WithRateLimiting(rateLimitData)
 
 	// If the user is a Site Admin, it should have that Grant and skip the other ones.
 	if user.SiteAdmin {
@@ -82,11 +82,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		// All the Job Permissions of the user will be requested in order to create a grant for any role
 		// for which the user has at least one Job with it.
 		userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
-		outAnnotations = annotations.Annotations{}
-		outAnnotations.WithRateLimiting(rateLimitData)
 		if err != nil {
-			return nil, "", outAnnotations, err
+			return nil, "", nil, err
 		}
+		outAnnotations.WithRateLimiting(rateLimitData)
 
 		uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
 		if err != nil {
@@ -107,11 +106,10 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		// Retrieves the list of 'Future Job Permissions' assigned to the user.
 		// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
 		userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
-		outAnnotations = annotations.Annotations{}
-		outAnnotations.WithRateLimiting(rateLimitData)
 		if err != nil {
-			return nil, "", outAnnotations, err
+			return nil, "", nil, err
 		}
+		outAnnotations.WithRateLimiting(rateLimitData)
 
 		uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
 		if err != nil {

@@ -63,6 +63,7 @@ func SerializeTokens(tokens JobPermissionPaginationTokens) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot serialize custom pagination tokens: %w", err)
 	}
+
 	return string(b), nil
 }
 
@@ -73,5 +74,9 @@ func DeserializeTokens(stringToken string) (JobPermissionPaginationTokens, error
 	}
 
 	err := json.Unmarshal([]byte(stringToken), &tokens)
-	return tokens, fmt.Errorf("cannot deserialize custom pagination tokens: %w", err)
+	if err != nil {
+		return tokens, fmt.Errorf("cannot deserialize custom pagination tokens: %w", err)
+	}
+
+	return tokens, nil
 }

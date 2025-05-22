@@ -84,61 +84,63 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 
 		membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
 		roleGrants = append(roleGrants, membershipGrant)
-	} else {
-		// All the Job Permissions of the user will be requested in order to create a grant for any role
-		// for which the user has at least one Job with it.
-		userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
-		if err != nil {
-			if rateLimitData != nil {
-				outAnnotations.WithRateLimiting(rateLimitData)
-			}
-			return nil, "", outAnnotations, err
-		}
-		outAnnotations.WithRateLimiting(rateLimitData)
 
-		uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
-		if err != nil {
-			return nil, "", nil, err
-		}
-		for _, userRoleID := range uniqueUserRoleIDs {
-			roleResource := &v2.Resource{
-				Id: &v2.ResourceId{
-					ResourceType: roleResourceType.Id,
-					Resource:     strconv.Itoa(userRoleID),
-				},
-			}
+		return roleGrants, "", outAnnotations, nil
+	}
 
-			membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
-			roleGrants = append(roleGrants, membershipGrant)
+	// All the Job Permissions of the user will be requested in order to create a grant for any role
+	// for which the user has at least one Job with it.
+	userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
+	if err != nil {
+		if rateLimitData != nil {
+			outAnnotations.WithRateLimiting(rateLimitData)
+		}
+		return nil, "", outAnnotations, err
+	}
+	outAnnotations.WithRateLimiting(rateLimitData)
+
+	uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	for _, userRoleID := range uniqueUserRoleIDs {
+		roleResource := &v2.Resource{
+			Id: &v2.ResourceId{
+				ResourceType: roleResourceType.Id,
+				Resource:     strconv.Itoa(userRoleID),
+			},
 		}
 
-		// Retrieves the list of 'Future Job Permissions' assigned to the user.
-		// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
-		userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
-		if err != nil {
-			if rateLimitData != nil {
-				outAnnotations.WithRateLimiting(rateLimitData)
-			}
-			return nil, "", outAnnotations, err
-		}
-		outAnnotations.WithRateLimiting(rateLimitData)
+		membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
+		roleGrants = append(roleGrants, membershipGrant)
+	}
 
-		uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
-		if err != nil {
-			return nil, "", nil, err
+	// Retrieves the list of 'Future Job Permissions' assigned to the user.
+	// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
+	userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
+	if err != nil {
+		if rateLimitData != nil {
+			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		for _, userRoleID := range uniqueUserRoleIDs {
-			futureRoleUserID := fmt.Sprintf("future-job:%d", userRoleID)
-			roleResource := &v2.Resource{
-				Id: &v2.ResourceId{
-					ResourceType: roleResourceType.Id,
-					Resource:     futureRoleUserID,
-				},
-			}
+		return nil, "", outAnnotations, err
+	}
+	outAnnotations.WithRateLimiting(rateLimitData)
 
-			membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
-			roleGrants = append(roleGrants, membershipGrant)
+	uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	for _, userRoleID := range uniqueUserRoleIDs {
+		futureRoleUserID := fmt.Sprintf("future-job:%d", userRoleID)
+		roleResource := &v2.Resource{
+			Id: &v2.ResourceId{
+				ResourceType: roleResourceType.Id,
+				Resource:     futureRoleUserID,
+			},
 		}
+
+		membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
+		roleGrants = append(roleGrants, membershipGrant)
 	}
 
 	var nextToken string

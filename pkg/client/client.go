@@ -7,15 +7,19 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/conductorone/baton-greenhouse/pkg/models"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
-	baseURL = "https://harvest.greenhouse.io"
+	//baseURL = "https://harvest.greenhouse.io"
+	baseURL = "http://localhost:9191"
 
 	usersEPv1                    = "v1/users"
 	userRolesEPv1                = "v1/user_roles"
@@ -423,9 +427,9 @@ func (c *GreenhouseClient) doRequest(
 
 	res, err := c.httpClient.Do(req, doOpts...)
 	if err != nil {
-		statusCode := "unknown"
+		responseStatus := "unknown"
 		if res != nil {
-			statusCode = strconv.Itoa(res.StatusCode)
+			responseStatus = strconv.Itoa(res.StatusCode)
 		}
 
 		if len(apiErr.Errors) > 0 {
@@ -433,15 +437,26 @@ func (c *GreenhouseClient) doRequest(
 			if apiErr.Errors[0].Field != "" {
 				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
 			}
-			return res, fmt.Errorf("greenhouse API error: %s | Response Code: %s", errDetail, statusCode)
+
+			detailedError := consolidateDetailedError(errDetail, responseStatus, status.Code(err))
+			return res, detailedError
 		}
 		if apiErr.APIMessage != "" {
-			return res, fmt.Errorf("greenhouse API error message: %s | Response Code: %s", apiErr.APIMessage, statusCode)
+			detailedError := consolidateDetailedError(apiErr.APIMessage, responseStatus, status.Code(err))
+			return res, detailedError
 		}
+
 		return res, fmt.Errorf("request failed: %w", err)
 	}
 
 	return res, nil
+}
+
+func consolidateDetailedError(errorMessage string, responseStatus string, statusCode codes.Code) error {
+	if strings.Contains(errorMessage, "Rate limit exceeded") {
+		statusCode = codes.Unavailable
+	}
+	return status.Error(statusCode, fmt.Sprintf("greenhouse API error: %s | Response Code: %s", errorMessage, responseStatus))
 }
 
 func New(ctx context.Context, username, onBehalfOfEmail string) (*GreenhouseClient, error) {

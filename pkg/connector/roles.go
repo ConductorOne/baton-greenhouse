@@ -53,9 +53,6 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 			continue
 		}
 
-		// TODO: Validate Display Name.
-		// Since we cannot test this, I'm not sure if the Name that comes in the response structure it's fine to have as Display Name
-		// or if we should add a prefix like "Job Admin:" and then the user role name.
 		newRoleResource, err := createRoleResource(
 			strconv.Itoa(userRole.ID),
 			userRole.Name,
@@ -70,9 +67,7 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		}
 		roleResources = append(roleResources, newRoleResource)
 
-		// TODO: Validate Display Name.
-		// Create the entitlement for the future job permission.
-		// Structure: "future-job:userRoleID"
+		// Creates the entitlement for the future job permission.
 		newRoleResource, err = createRoleResource(
 			fmt.Sprintf("future-job:%d", userRole.ID),
 			fmt.Sprintf("Future Job: %s", userRole.Name),

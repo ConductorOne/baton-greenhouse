@@ -55,6 +55,12 @@ func (b *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *paginat
 
 // Grants function will create the Grants for the Roles. This should upgrade performance and reduce sync time.
 func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	// TODO: This functions requests all the Job Permissions of users and creates the Grants for the Roles with that data.
+	//  However, users are likely to have assigned roles on jobs that are not 'job_admin' type.
+	//  Creating Grants for them will cause trouble since those entitlements won't be found when trying to put the data together.
+	//  We could have a cache with the available Roles and validate the IDs of the roles to only create Grants for those
+	//  that are actually job admin roles.
+
 	var roleGrants []*v2.Grant
 	var outAnnotations annotations.Annotations
 	userID := userResource.Id

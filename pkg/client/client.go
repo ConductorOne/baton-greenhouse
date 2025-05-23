@@ -423,15 +423,20 @@ func (c *GreenhouseClient) doRequest(
 
 	res, err := c.httpClient.Do(req, doOpts...)
 	if err != nil {
+		statusCode := "unknown"
+		if res != nil {
+			statusCode = strconv.Itoa(res.StatusCode)
+		}
+
 		if len(apiErr.Errors) > 0 {
 			errDetail := apiErr.Errors[0].Message
 			if apiErr.Errors[0].Field != "" {
 				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
 			}
-			return res, fmt.Errorf("greenhouse API error: %s", errDetail)
+			return res, fmt.Errorf("greenhouse API error: %s | Response Code: %s", errDetail, statusCode)
 		}
 		if apiErr.APIMessage != "" {
-			return res, fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
+			return res, fmt.Errorf("greenhouse API error message: %s | Response Code: %s", apiErr.APIMessage, statusCode)
 		}
 		return res, fmt.Errorf("request failed: %w", err)
 	}

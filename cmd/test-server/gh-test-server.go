@@ -121,7 +121,7 @@ var (
 	rateLimitLimit       = 40
 	rateLimitRemaining   = rateLimitLimit
 	rateLimitWindowStart time.Time
-	rateLimitResetDelta  = 10 * time.Second
+	rateLimitResetDelta  = 60 * time.Second
 	rateLimitMutex       sync.Mutex
 	rng                  *rand.Rand
 )
@@ -328,8 +328,7 @@ func handleRateLimiting(w http.ResponseWriter) bool {
 	if rateLimitRemaining <= 0 {
 		w.Header().Set("X-RateLimit-Remaining", "0")
 		respondWithError(w,
-			// http.StatusTooManyRequests, // Since it seems like the real API doesn't return a 429 when rate limit is exceeded,
-			http.StatusUnauthorized, // we return this other error, just to validate the corrective behavior of the connector.
+			http.StatusTooManyRequests,
 			"Rate limit exceeded.")
 		log.Printf("Rate limit exceeded. Remaining: 0. Resets at: %s", time.Unix(resetTime, 0).Format(time.RFC1123))
 		return true

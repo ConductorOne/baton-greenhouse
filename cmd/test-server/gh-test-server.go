@@ -16,6 +16,15 @@ import (
 
 // --- Data Structures ---
 
+// APIError defines the structure for API error responses.
+type APIError struct {
+	APIMessage string `json:"message"`
+	Errors     []struct {
+		Message string `json:"message"`
+		Field   string `json:"field"`
+	} `json:"errors"`
+}
+
 type Candidate struct {
 	ID           int64     `json:"id"`
 	FirstName    string    `json:"first_name"`
@@ -75,11 +84,10 @@ type User struct {
 	EmployeeID *string   `json:"employee_id,omitempty"`
 }
 
-// Updated UserRole struct
 type UserRole struct {
 	ID   int64  `json:"id"`
-	Type string `json:"type"` // "interviewer" or "job_admin" (or other system roles)
-	Name string `json:"name"` // More specific name
+	Type string `json:"type"`
+	Name string `json:"name"`
 }
 
 type JobPermission struct {
@@ -149,15 +157,25 @@ func initMockData() {
 			CreatedAt: now.Add(-time.Duration(i*3) * 24 * time.Hour), UpdatedAt: now.Add(-time.Duration(i) * 24 * time.Hour),
 		}
 		if i%3 == 0 {
-			job.Department = nil //&struct {ID int64; Name string}{ID: int64((i % 3) + 100), Name: fmt.Sprintf("Engineering Dept %d", (i%3)+100)}
+			job.Department = nil
+			//&struct {
+			//	ID   int64
+			//	Name string
+			//}{ID: int64((i % 3) + 100), Name: fmt.Sprintf("Engineering Dept %d", (i%3)+100)}
 		}
 		if i%2 == 0 {
 			job.Offices = nil
-			//	[]struct {ID int64; Name string}{
+			//	[]struct {
+			//	ID   int64
+			//	Name string
+			//}{
 			//	{ID: int64((i % 2) + 200), Name: fmt.Sprintf("Office Location %d", (i%2)+200)},
 			//}
 			//if i%4 == 0 && len(job.Offices) > 0 {
-			//	job.Offices = append(job.Offices, struct{ID int64; Name string}{ID: int64(((i%2)+1)%2 + 200), Name: fmt.Sprintf("Aux Office %d", (((i%2)+1)%2 + 200))})
+			//	job.Offices = append(job.Offices, struct {
+			//		ID   int64
+			//		Name string
+			//	}{ID: int64(((i%2)+1)%2 + 200), Name: fmt.Sprintf("Aux Office %d", (((i%2)+1)%2 + 200))})
 			//}
 		}
 		mockJobs = append(mockJobs, job)
@@ -169,8 +187,15 @@ func initMockData() {
 			ID: int64(i), CandidateID: int64((i % 150) + 1), JobID: int64((i % 75) + 1),
 			Status: []string{"active", "rejected", "hired", "new"}[i%4], AppliedAt: now.Add(-time.Duration(i*5) * time.Hour),
 			LastActivityAt: now.Add(-time.Duration(i*2) * time.Hour),
-			Source:         nil, //&struct {ID int64; Name string}{ID: int64((i % 4) + 1), Name: fmt.Sprintf("Source %d", (i%4)+1)},
-			CreditedTo:     nil, //&struct {ID int64; Name string}{ID: int64((i % 10) + 1), Name: fmt.Sprintf("Recruiter %d", (i%10)+1)},
+			Source:         nil,
+			//	&struct {
+			//	ID   int64
+			//	Name string
+			//}{ID: int64((i % 4) + 1), Name: fmt.Sprintf("Source %d", (i%4)+1)},
+			//CreditedTo: &struct {
+			//	ID   int64
+			//	Name string
+			//}{ID: int64((i % 10) + 1), Name: fmt.Sprintf("Recruiter %d", (i%10)+1)},
 		})
 	}
 
@@ -184,7 +209,7 @@ func initMockData() {
 		})
 	}
 
-	// User Roles - Updated with Type and more specific names
+	// User Roles
 	mockUserRoles = []UserRole{
 		{ID: 1, Type: "job_admin", Name: "Job Admin - Marketing Department"},
 		{ID: 2, Type: "interviewer", Name: "Technical Interviewer - Backend"},
@@ -198,8 +223,6 @@ func initMockData() {
 		//{ID: 10, Type: "system", Name: "Basic"},
 		//{ID: 11, Type: "system", Name: "Site Admin"},
 	}
-	// Ensure nextPermissionID starts after any manually assigned UserRole IDs if they were to overlap
-	// For safety, though UserRole IDs and Permission IDs are different entities.
 
 	// User Job Permissions & Future Job Permissions
 	mockUserJobPermissionsMap = make(map[int64][]JobPermission)
@@ -208,16 +231,13 @@ func initMockData() {
 	for _, user := range mockUsers {
 		var jobPerms []JobPermission
 		var futureJobPerms []FutureJobPermission
-		numJobPerms := rng.Intn(len(mockJobs)/3+1) + 3 // Each user has some job perms (3 to ~28)
-
+		numJobPerms := rng.Intn(len(mockJobs)/3+1) + 3
 		jobIndices := rng.Perm(len(mockJobs))
 
 		for i := 0; i < numJobPerms && i < len(mockJobs); i++ {
 			job := mockJobs[jobIndices[i]]
-			// Assign a relevant UserRole (prefer job_admin or interviewer types)
 			var userRole UserRole
 			if len(mockUserRoles) > 0 {
-				// Filter for job_admin or interviewer roles if possible
 				relevantRoles := []UserRole{}
 				for _, r := range mockUserRoles {
 					if r.Type == "job_admin" || r.Type == "interviewer" {
@@ -226,33 +246,30 @@ func initMockData() {
 				}
 				if len(relevantRoles) > 0 {
 					userRole = relevantRoles[rng.Intn(len(relevantRoles))]
-				} else { // Fallback to any role
+				} else {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
-			} else { // Should not happen with current mockUserRoles
+			} else {
 				userRole = UserRole{ID: 999, Type: "fallback", Name: "Fallback Role"}
 			}
-
 			jobPerms = append(jobPerms, JobPermission{
-				ID:         nextPermissionID,
-				JobID:      job.ID,
-				UserRoleID: userRole.ID,
+				ID: nextPermissionID, JobID: job.ID, UserRoleID: userRole.ID,
 			})
 			nextPermissionID++
 		}
 		mockUserJobPermissionsMap[user.ID] = jobPerms
 
-		numFutureJobPerms := rng.Intn(8) + 1 // Each user has some future job perms (1 to 8)
+		numFutureJobPerms := rng.Intn(8) + 1
 		for i := 0; i < numFutureJobPerms; i++ {
 			var userRole UserRole
 			if len(mockUserRoles) > 0 {
 				relevantRoles := []UserRole{}
 				for _, r := range mockUserRoles {
-					if r.Type == "job_admin" { // Future permissions often tied to job_admin roles
+					if r.Type == "job_admin" {
 						relevantRoles = append(relevantRoles, r)
 					}
 				}
-				if len(relevantRoles) == 0 { // Fallback if no job_admin roles
+				if len(relevantRoles) == 0 {
 					for _, r := range mockUserRoles {
 						if r.Type == "interviewer" {
 							relevantRoles = append(relevantRoles, r)
@@ -261,18 +278,16 @@ func initMockData() {
 				}
 				if len(relevantRoles) > 0 {
 					userRole = relevantRoles[rng.Intn(len(relevantRoles))]
-				} else { // Fallback to any role
+				} else {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
 			} else {
 				userRole = UserRole{ID: 998, Type: "fallback_future", Name: "Fallback Future Role"}
 			}
-
 			var officeID *int64
 			var extOfficeID *string
 			var deptID *int64
 			var extDeptID *string
-
 			if len(mockJobs) > 0 && rng.Float32() < 0.7 {
 				jobWithMeta := mockJobs[rng.Intn(len(mockJobs))]
 				if len(jobWithMeta.Offices) > 0 && rng.Float32() < 0.8 {
@@ -287,14 +302,9 @@ func initMockData() {
 					extDeptID = &extDeptStr
 				}
 			}
-
 			futureJobPerms = append(futureJobPerms, FutureJobPermission{
-				ID:                   nextPermissionID,
-				OfficeID:             officeID,
-				ExternalOfficeID:     extOfficeID,
-				DepartmentID:         deptID,
-				ExternalDepartmentID: extDeptID,
-				UserRoleID:           userRole.ID,
+				ID: nextPermissionID, OfficeID: officeID, ExternalOfficeID: extOfficeID,
+				DepartmentID: deptID, ExternalDepartmentID: extDeptID, UserRoleID: userRole.ID,
 			})
 			nextPermissionID++
 		}
@@ -307,24 +317,23 @@ func initMockData() {
 func handleRateLimiting(w http.ResponseWriter) bool {
 	rateLimitMutex.Lock()
 	defer rateLimitMutex.Unlock()
-
 	if time.Since(rateLimitWindowStart) >= rateLimitResetDelta {
 		rateLimitRemaining = rateLimitLimit
 		rateLimitWindowStart = time.Now()
 		log.Println("Rate limit window reset.")
 	}
-
 	resetTime := rateLimitWindowStart.Add(rateLimitResetDelta).Unix()
 	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(rateLimitLimit))
 	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(resetTime, 10))
-
 	if rateLimitRemaining <= 0 {
 		w.Header().Set("X-RateLimit-Remaining", "0")
-		respondWithError(w, http.StatusTooManyRequests, "Rate limit exceeded. Try again later.")
+		respondWithError(w,
+			// http.StatusTooManyRequests, // Since it seems like the real API doesn't return a 429 when rate limit is exceeded,
+			http.StatusUnauthorized, // we return this other error, just to validate the corrective behavior of the connector.
+			"Rate limit exceeded.")
 		log.Printf("Rate limit exceeded. Remaining: 0. Resets at: %s", time.Unix(resetTime, 0).Format(time.RFC1123))
 		return true
 	}
-
 	rateLimitRemaining--
 	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(rateLimitRemaining))
 	log.Printf("Request processed. Rate limit remaining: %d", rateLimitRemaining)
@@ -334,7 +343,6 @@ func handleRateLimiting(w http.ResponseWriter) bool {
 func parsePagination(r *http.Request) (page, perPage int, err error) {
 	pageStr := r.URL.Query().Get("page")
 	perPageStr := r.URL.Query().Get("per_page")
-
 	page = 1
 	if pageStr != "" {
 		page, err = strconv.Atoi(pageStr)
@@ -342,7 +350,6 @@ func parsePagination(r *http.Request) (page, perPage int, err error) {
 			return 0, 0, fmt.Errorf("invalid 'page' parameter: must be a positive integer")
 		}
 	}
-
 	perPage = 50
 	if perPageStr != "" {
 		perPage, err = strconv.Atoi(perPageStr)
@@ -394,25 +401,79 @@ func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{})
 		if w.Header().Get("X-RateLimit-Limit") != "" && statusCode == http.StatusTooManyRequests {
 			return
 		}
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		// If marshalling fails, we need to send a generic server error if no response has been started
+		// Check if headers already sent
+		if w.Header().Get("Content-Type") == "" { // A simple check
+			http.Error(w, `{"message": "Internal Server Error while marshalling JSON", "errors": []}`, http.StatusInternalServerError)
+		}
 		return
 	}
 	if w.Header().Get("X-RateLimit-Limit") != "" && statusCode != http.StatusTooManyRequests {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-	} else if w.Header().Get("X-RateLimit-Limit") == "" {
+	} else if w.Header().Get("X-RateLimit-Limit") == "" { // Should only happen if handleRateLimiting was skipped
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-	}
+	} // For 429, headers (including Content-Type) and status code are assumed to be set by respondWithError.
+
 	w.Write(response)
 }
 
 func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	// Note: WriteHeader should ideally be called only once.
+	// If handleRateLimiting calls this for 429, it will set the status code.
+	// We ensure it's set here for other error paths too.
+	// A robust way is to check if `w.Header().Get("Status-Code-Written") == "true"` if we had such a mechanism.
+	// For now, this might call WriteHeader again if already called by rate limiter,
+	// but net/http's ResponseWriter typically ignores subsequent WriteHeader calls.
 	w.WriteHeader(statusCode)
-	jsonError := map[string]interface{}{"error": message}
-	if err := json.NewEncoder(w).Encode(jsonError); err != nil {
-		log.Printf("Error encoding JSON error response: %v", err)
+
+	apiErr := APIError{
+		APIMessage: message,
+		// Initialize with an empty slice. It will be marshalled as "errors": []
+		Errors: make([]struct {
+			Message string `json:"message"`
+			Field   string `json:"field"`
+		}, 0),
+	}
+
+	// Attempt to populate the Errors slice for specific, identifiable field errors
+	if statusCode == http.StatusBadRequest {
+		if strings.Contains(message, "'page' parameter") {
+			apiErr.Errors = append(apiErr.Errors, struct {
+				Message string `json:"message"`
+				Field   string `json:"field"`
+			}{
+				Message: "Invalid value provided for 'page' parameter.", // More specific if possible
+				Field:   "page",
+			})
+		} else if strings.Contains(message, "'per_page' parameter") {
+			apiErr.Errors = append(apiErr.Errors, struct {
+				Message string `json:"message"`
+				Field   string `json:"field"`
+			}{
+				Message: "Invalid value provided for 'per_page' parameter.", // More specific if possible
+				Field:   "per_page",
+			})
+		} else if strings.Contains(message, "Invalid User ID format") {
+			apiErr.Errors = append(apiErr.Errors, struct {
+				Message string `json:"message"`
+				Field   string `json:"field"`
+			}{
+				Message: message,   // Use the original detailed message
+				Field:   "user_id", // Or more generally "path_parameter"
+			})
+		}
+		// Add more cases here if other specific field errors can be identified from the message string
+	}
+	// For general 404s, 429s, 500s, the top-level APIMessage is usually sufficient, and 'errors' list stays empty.
+
+	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
+		log.Printf("Error encoding APIError JSON response: %v", err)
+		// If encoding this fails, as a last resort, write plain text.
+		// This might happen if headers were already flushed.
+		// http.Error(w, `{"message":"Failed to encode error details."}`, http.StatusInternalServerError) // Avoid this if headers are already sent
 	}
 }
 
@@ -524,7 +585,8 @@ func getUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := getUserIDFromPath(r.URL.Path, "/v1/users/")
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid User ID format in URL path.")
+		// Pass the specific error message from getUserIDFromPath for better detail
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	for _, user := range mockUsers {
@@ -544,7 +606,7 @@ func listUserRolesHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
-	}
+	} // err.Error() used as message
 	totalItems := len(mockUserRoles)
 	startIndex := (page - 1) * perPage
 	endIndex := startIndex + perPage
@@ -567,10 +629,11 @@ func getUserIDFromPath(path string, prefix string) (int64, error) {
 	parts := strings.Split(trimmedPath, "/")
 	if len(parts) < 1 || parts[0] == "" {
 		return 0, fmt.Errorf("user ID not found in path")
-	}
+	} // Generic message
 	userID, err := strconv.ParseInt(parts[0], 10, 64)
+	// More specific message for parsing error
 	if err != nil {
-		return 0, fmt.Errorf("invalid user ID in path: %v", err)
+		return 0, fmt.Errorf("invalid User ID format in URL path: '%s' is not a number", parts[0])
 	}
 	return userID, nil
 }
@@ -587,12 +650,12 @@ func listUserJobPermissionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/users/"), "/")
 	if len(pathParts) < 1 {
-		respondWithError(w, http.StatusBadRequest, "Invalid path format.")
+		respondWithError(w, http.StatusBadRequest, "Invalid path format for user job permissions.")
 		return
 	}
 	userID, err := strconv.ParseInt(pathParts[0], 10, 64)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid User ID.")
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid User ID '%s' in path for job permissions.", pathParts[0]))
 		return
 	}
 
@@ -604,7 +667,7 @@ func listUserJobPermissionsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !userExists {
-		respondWithError(w, http.StatusNotFound, fmt.Sprintf("User ID %d not found.", userID))
+		respondWithError(w, http.StatusNotFound, fmt.Sprintf("User ID %d not found when listing job permissions.", userID))
 		return
 	}
 
@@ -642,12 +705,12 @@ func listUserFutureJobPermissionsHandler(w http.ResponseWriter, r *http.Request)
 
 	pathParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/v1/users/"), "/")
 	if len(pathParts) < 1 {
-		respondWithError(w, http.StatusBadRequest, "Invalid path format.")
+		respondWithError(w, http.StatusBadRequest, "Invalid path format for user future job permissions.")
 		return
 	}
 	userID, err := strconv.ParseInt(pathParts[0], 10, 64)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid User ID.")
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid User ID '%s' in path for future job permissions.", pathParts[0]))
 		return
 	}
 
@@ -659,7 +722,7 @@ func listUserFutureJobPermissionsHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 	if !userExists {
-		respondWithError(w, http.StatusNotFound, fmt.Sprintf("User ID %d not found.", userID))
+		respondWithError(w, http.StatusNotFound, fmt.Sprintf("User ID %d not found when listing future job permissions.", userID))
 		return
 	}
 
@@ -701,6 +764,7 @@ func main() {
 		trimmedPath = strings.TrimSuffix(trimmedPath, "/")
 		parts := strings.Split(trimmedPath, "/")
 		if len(parts) == 1 {
+			// Attempt to parse as ID. If it's not a number, it's not a valid user ID path.
 			if _, err := strconv.ParseInt(parts[0], 10, 64); err == nil {
 				getUserByIDHandler(w, r)
 				return
@@ -715,12 +779,14 @@ func main() {
 				return
 			}
 		}
-		http.NotFound(w, r)
+		// If not a recognized pattern, fall through to NotFound.
+		// Pass the original message from error sources for more context.
+		respondWithError(w, http.StatusNotFound, fmt.Sprintf("Endpoint %s not found or invalid.", path))
 	})
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
-			http.NotFound(w, r)
+			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Endpoint %s not found.", r.URL.Path))
 			return
 		}
 		fmt.Fprintln(w, "Greenhouse Harvest API v1 Mock Server is running.")
@@ -739,9 +805,9 @@ func main() {
 
 	port := "9191"
 	log.Printf("Starting Greenhouse Harvest API v1 Mock Server on port %s", port)
-	log.Printf("Try: http://localhost:%s/v1/user_roles?page=1&per_page=5", port)
-	log.Printf("Try: http://localhost:%s/v1/users/1/permissions/jobs?page=1&per_page=5", port)
-	log.Printf("Try: http://localhost:%s/v1/users/1/permissions/future_jobs?page=1&per_page=3", port)
+	log.Printf("Test pagination error: http://localhost:%s/v1/users?page=abc", port)
+	log.Printf("Test User Not Found error: http://localhost:%s/v1/users/99999", port)
+
 	err := http.ListenAndServe(":"+port, mux)
 	if err != nil {
 		log.Fatalf("Could not start server: %s\n", err)

@@ -18,8 +18,7 @@ import (
 )
 
 const (
-	//baseURL = "https://harvest.greenhouse.io"
-	baseURL = "http://localhost:9191"
+	baseURL = "https://harvest.greenhouse.io"
 
 	usersEPv1                    = "v1/users"
 	userRolesEPv1                = "v1/user_roles"

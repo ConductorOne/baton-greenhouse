@@ -158,25 +158,25 @@ func initMockData() {
 		}
 		if i%3 == 0 {
 			job.Department = nil
-			//&struct {
+			// &struct {
 			//	ID   int64
 			//	Name string
-			//}{ID: int64((i % 3) + 100), Name: fmt.Sprintf("Engineering Dept %d", (i%3)+100)}
+			// }{ID: int64((i % 3) + 100), Name: fmt.Sprintf("Engineering Dept %d", (i%3)+100)}
 		}
 		if i%2 == 0 {
 			job.Offices = nil
 			//	[]struct {
 			//	ID   int64
 			//	Name string
-			//}{
+			// }{
 			//	{ID: int64((i % 2) + 200), Name: fmt.Sprintf("Office Location %d", (i%2)+200)},
-			//}
-			//if i%4 == 0 && len(job.Offices) > 0 {
+			// }
+			// if i%4 == 0 && len(job.Offices) > 0 {
 			//	job.Offices = append(job.Offices, struct {
 			//		ID   int64
 			//		Name string
 			//	}{ID: int64(((i%2)+1)%2 + 200), Name: fmt.Sprintf("Aux Office %d", (((i%2)+1)%2 + 200))})
-			//}
+			// }
 		}
 		mockJobs = append(mockJobs, job)
 	}
@@ -191,11 +191,11 @@ func initMockData() {
 			//	&struct {
 			//	ID   int64
 			//	Name string
-			//}{ID: int64((i % 4) + 1), Name: fmt.Sprintf("Source %d", (i%4)+1)},
-			//CreditedTo: &struct {
+			// }{ID: int64((i % 4) + 1), Name: fmt.Sprintf("Source %d", (i%4)+1)},
+			// CreditedTo: &struct {
 			//	ID   int64
 			//	Name string
-			//}{ID: int64((i % 10) + 1), Name: fmt.Sprintf("Recruiter %d", (i%10)+1)},
+			// }{ID: int64((i % 10) + 1), Name: fmt.Sprintf("Recruiter %d", (i%10)+1)},
 		})
 	}
 
@@ -220,8 +220,8 @@ func initMockData() {
 		{ID: 7, Type: "interviewer", Name: "Accounting Department"},
 		{ID: 8, Type: "interviewer", Name: "Technical Interviewer - Frontend"},
 		{ID: 9, Type: "interviewer", Name: "Executive Interviewer"},
-		//{ID: 10, Type: "system", Name: "Basic"},
-		//{ID: 11, Type: "system", Name: "Site Admin"},
+		// {ID: 10, Type: "system", Name: "Basic"},
+		// {ID: 11, Type: "system", Name: "Site Admin"},
 	}
 
 	// User Job Permissions & Future Job Permissions
@@ -340,7 +340,7 @@ func handleRateLimiting(w http.ResponseWriter) bool {
 	return false
 }
 
-func parsePagination(r *http.Request) (page, perPage int, err error) {
+func parsePagination(r *http.Request) (page int, perPage int, err error) {
 	pageStr := r.URL.Query().Get("page")
 	perPageStr := r.URL.Query().Get("per_page")
 	page = 1
@@ -416,7 +416,10 @@ func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{})
 		w.WriteHeader(statusCode)
 	} // For 429, headers (including Content-Type) and status code are assumed to be set by respondWithError.
 
-	w.Write(response)
+	_, err = w.Write(response)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+	}
 }
 
 func respondWithError(w http.ResponseWriter, statusCode int, message string) {
@@ -748,7 +751,6 @@ func listUserFutureJobPermissionsHandler(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, paginatedFuturePermissions)
 }
 
-// --- Main Function ---
 func main() {
 	initMockData()
 	mux := http.NewServeMux()
@@ -784,25 +786,27 @@ func main() {
 		respondWithError(w, http.StatusNotFound, fmt.Sprintf("Endpoint %s not found or invalid.", path))
 	})
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Endpoint %s not found.", r.URL.Path))
-			return
-		}
-		fmt.Fprintln(w, "Greenhouse Harvest API v1 Mock Server is running.")
-		fmt.Fprintln(w, "Available endpoints (GET):")
-		fmt.Fprintln(w, "  /v1/candidates")
-		fmt.Fprintln(w, "  /v1/jobs")
-		fmt.Fprintln(w, "  /v1/applications")
-		fmt.Fprintln(w, "  /v1/users (List)")
-		fmt.Fprintln(w, "  /v1/users/{id} (Specific user)")
-		fmt.Fprintln(w, "  /v1/user_roles (List of UserRole objects with type and name)")
-		fmt.Fprintln(w, "  /v1/users/{user_id}/permissions/jobs (Paginated list of JobPermission objects)")
-		fmt.Fprintln(w, "  /v1/users/{user_id}/permissions/future_jobs (Paginated list of FutureJobPermission objects)")
-		fmt.Fprintln(w, "Supports 'page' and 'per_page' query parameters for list endpoints.")
-		fmt.Fprintln(w, fmt.Sprintf("Rate limit: %d requests per %v.", rateLimitLimit, rateLimitResetDelta))
-	})
-
+	/*
+		INFORMATION ABOUT THE AVAILABLE ENDPOINTS COULD BE DISPLAYED TO THE REQUESTER IF NEEDED
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/" {
+				respondWithError(w, http.StatusNotFound, fmt.Sprintf("Endpoint %s not found.", r.URL.Path))
+				return
+			}
+			fmt.Fprint(w, "Greenhouse Harvest API v1 Mock Server is running.")
+			fmt.Fprint(w, "Available endpoints (GET):")
+			fmt.Fprint(w, "  /v1/candidates")
+			fmt.Fprint(w, "  /v1/jobs")
+			fmt.Fprint(w, "  /v1/applications")
+			fmt.Fprint(w, "  /v1/users (List)")
+			fmt.Fprint(w, "  /v1/users/{id} (Specific user)")
+			fmt.Fprint(w, "  /v1/user_roles (List of UserRole objects with type and name)")
+			fmt.Fprint(w, "  /v1/users/{user_id}/permissions/jobs (Paginated list of JobPermission objects)")
+			fmt.Fprint(w, "  /v1/users/{user_id}/permissions/future_jobs (Paginated list of FutureJobPermission objects)")
+			fmt.Fprint(w, "Supports 'page' and 'per_page' query parameters for list endpoints.")
+			fmt.Fprint(w, fmt.Sprintf("Rate limit: %d requests per %v.", rateLimitLimit, rateLimitResetDelta))
+		})
+	*/
 	port := "9191"
 	log.Printf("Starting Greenhouse Harvest API v1 Mock Server on port %s", port)
 	log.Printf("Test pagination error: http://localhost:%s/v1/users?page=abc", port)

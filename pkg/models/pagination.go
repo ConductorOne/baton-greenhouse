@@ -1,3 +1,4 @@
+//nolint:revive // pagination utilities
 package models
 
 import (

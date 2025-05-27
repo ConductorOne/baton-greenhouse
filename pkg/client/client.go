@@ -1,3 +1,4 @@
+// Package client provides a client for interacting with the Greenhouse Harvest API.
 package client
 
 import (
@@ -24,6 +25,7 @@ const (
 	userFutureJobPermissionsEPv1 = "v1/users/%d/permissions/future_jobs"
 )
 
+// GreenhouseClient is a client for the Greenhouse Harvest API.
 type GreenhouseClient struct {
 	user            string
 	onBehalfOfEmail string
@@ -68,7 +70,7 @@ func (c *GreenhouseClient) ListUsers(ctx context.Context, next string) ([]models
 	if err != nil {
 		return nil, nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// see https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -95,6 +97,7 @@ func (c *GreenhouseClient) GetAdminByEmail(ctx context.Context, email string) (*
 	return user, nil
 }
 
+// CreateUserAccount creates a new user account in Greenhouse.
 // https://developers.greenhouse.io/harvest.html#post-add-user.
 func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID int, email, firstName, lastName string) (*models.User, error) {
 	body := map[string]interface{}{
@@ -119,11 +122,12 @@ func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID i
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return &created, nil
 }
 
+// GetOnBehalfOfEmail returns the email used for on-behalf-of requests.
 func (c *GreenhouseClient) GetOnBehalfOfEmail() string {
 	return c.onBehalfOfEmail
 }
@@ -156,11 +160,12 @@ func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) erro
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return nil
 }
 
+// GetUserByEmail retrieves a user by their email address.
 func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	endpoint, err := url.JoinPath(baseURL, usersEPv1)
 	if err != nil {
@@ -186,7 +191,7 @@ func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*m
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return &user, nil
 }
@@ -235,7 +240,7 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, tokens 
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -292,7 +297,7 @@ func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, t
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -341,7 +346,7 @@ func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string
 	if err != nil {
 		return nil, &rateLimitData, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -372,7 +377,7 @@ func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) 
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return userData, &rateLimitData, nil
 }
@@ -443,6 +448,7 @@ func (c *GreenhouseClient) doRequest(
 	return res, nil
 }
 
+// New creates a new GreenhouseClient with the given credentials.
 func New(ctx context.Context, username, onBehalfOfEmail string) (*GreenhouseClient, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {

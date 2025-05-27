@@ -1,3 +1,4 @@
+// Package connector implements the Greenhouse connector for baton.
 package connector
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
+// Connector implements the baton connector interface for Greenhouse.
 type Connector struct {
 	client *client.GreenhouseClient
 }
@@ -25,7 +27,7 @@ func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.Resour
 
 // Asset takes an input AssetRef and attempts to fetch it using the connector's authenticated http client
 // It streams a response, always starting with a metadata object, following by chunked payloads for the asset.
-func (d *Connector) Asset(_ context.Context, asset *v2.AssetRef) (string, io.ReadCloser, error) {
+func (d *Connector) Asset(_ context.Context, _ *v2.AssetRef) (string, io.ReadCloser, error) {
 	return "", nil, nil
 }
 

@@ -16,6 +16,7 @@ var (
 )
 
 //go:generate go run ./gen
+// Config defines the configuration fields for the Greenhouse connector.
 var Config = field.NewConfiguration([]field.SchemaField{
 	usernameField,
 	onBehalfOfField,
@@ -25,6 +26,6 @@ var Config = field.NewConfiguration([]field.SchemaField{
 // error if it isn't valid. Implementing this function is optional, it only
 // needs to perform extra validations that cannot be encoded with configuration
 // parameters.
-func ValidateConfig(ghc *Greenhouse) error {
+func ValidateConfig(_ *Greenhouse) error {
 	return nil
 }

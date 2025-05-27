@@ -1,3 +1,4 @@
+//nolint:revive // test server
 package main
 
 import (
@@ -130,7 +131,7 @@ func initMockData() {
 	now := time.Now()
 	rateLimitWindowStart = now
 	source := rand.NewSource(time.Now().UnixNano())
-	rng = rand.New(source)
+	rng = rand.New(source) //nolint:gosec // test server using non-cryptographic random data
 
 	// Candidates
 	for i := 1; i <= 150; i++ {
@@ -339,18 +340,20 @@ func handleRateLimiting(w http.ResponseWriter) bool {
 	return false
 }
 
-func parsePagination(r *http.Request) (page int, perPage int, err error) {
+func parsePagination(r *http.Request) (int, int, error) {
 	pageStr := r.URL.Query().Get("page")
 	perPageStr := r.URL.Query().Get("per_page")
-	page = 1
+	page := 1
 	if pageStr != "" {
+		var err error
 		page, err = strconv.Atoi(pageStr)
 		if err != nil || page <= 0 {
 			return 0, 0, fmt.Errorf("invalid 'page' parameter: must be a positive integer")
 		}
 	}
-	perPage = 50
+	perPage := 50
 	if perPageStr != "" {
+		var err error
 		perPage, err = strconv.Atoi(perPageStr)
 		if err != nil || perPage <= 0 {
 			return 0, 0, fmt.Errorf("invalid 'per_page' parameter: must be a positive integer")
@@ -442,7 +445,8 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 
 	// Attempt to populate the Errors slice for specific, identifiable field errors
 	if statusCode == http.StatusBadRequest {
-		if strings.Contains(message, "'page' parameter") {
+		switch {
+		case strings.Contains(message, "'page' parameter"):
 			apiErr.Errors = append(apiErr.Errors, struct {
 				Message string `json:"message"`
 				Field   string `json:"field"`
@@ -450,7 +454,7 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 				Message: "Invalid value provided for 'page' parameter.", // More specific if possible
 				Field:   "page",
 			})
-		} else if strings.Contains(message, "'per_page' parameter") {
+		case strings.Contains(message, "'per_page' parameter"):
 			apiErr.Errors = append(apiErr.Errors, struct {
 				Message string `json:"message"`
 				Field   string `json:"field"`
@@ -458,7 +462,7 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 				Message: "Invalid value provided for 'per_page' parameter.", // More specific if possible
 				Field:   "per_page",
 			})
-		} else if strings.Contains(message, "Invalid User ID format") {
+		case strings.Contains(message, "Invalid User ID format"):
 			apiErr.Errors = append(apiErr.Errors, struct {
 				Message string `json:"message"`
 				Field   string `json:"field"`
@@ -811,7 +815,14 @@ func main() {
 	log.Printf("Test pagination error: http://localhost:%s/v1/users?page=abc", port)
 	log.Printf("Test User Not Found error: http://localhost:%s/v1/users/99999", port)
 
-	err := http.ListenAndServe(":"+port, mux)
+	server := &http.Server{
+		Addr:           ":" + port,
+		Handler:        mux,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    120 * time.Second,
+	}
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("Could not start server: %s\n", err)
 	}

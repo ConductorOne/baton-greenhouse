@@ -50,7 +50,7 @@ func getNextLink(raw string) string {
 	return strings.Replace(found, ">", "", 1)
 }
 
-// JobPermissionPaginationTokens
+// JobPermissionPaginationTokens holds pagination tokens for job permission requests.
 // This pagination method could be modified to use the SDKs pagination bag instead.
 // Probably, that would be the best way to go. It's something to analyze.
 type JobPermissionPaginationTokens struct {
@@ -58,6 +58,7 @@ type JobPermissionPaginationTokens struct {
 	FutureJobPermissionsToken string
 }
 
+// SerializeTokens serializes pagination tokens to a JSON string.
 func SerializeTokens(tokens JobPermissionPaginationTokens) (string, error) {
 	b, err := json.Marshal(tokens)
 	if err != nil {
@@ -67,6 +68,7 @@ func SerializeTokens(tokens JobPermissionPaginationTokens) (string, error) {
 	return string(b), nil
 }
 
+// DeserializeTokens deserializes pagination tokens from a JSON string.
 func DeserializeTokens(stringToken string) (JobPermissionPaginationTokens, error) {
 	var tokens JobPermissionPaginationTokens
 	if stringToken == "" {

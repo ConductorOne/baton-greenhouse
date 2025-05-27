@@ -1,5 +1,7 @@
+// Package models contains data structures for the Greenhouse API.
 package models
 
+// APIError represents an error response from the Greenhouse API.
 type APIError struct {
 	APIMessage string `json:"message"`
 	Errors     []struct {
@@ -8,7 +10,7 @@ type APIError struct {
 	} `json:"errors"`
 }
 
-// Implement the uhttp.ErrorResponse interface.
+// Message implements the uhttp.ErrorResponse interface.
 func (e *APIError) Message() string {
 	if len(e.Errors) > 0 {
 		msg := e.Errors[0].Message

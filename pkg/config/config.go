@@ -15,8 +15,9 @@ var (
 	FieldRelationships = []field.SchemaFieldRelationship{}
 )
 
-//go:generate go run ./gen
 // Config defines the configuration fields for the Greenhouse connector.
+//
+//go:generate go run ./gen
 var Config = field.NewConfiguration([]field.SchemaField{
 	usernameField,
 	onBehalfOfField,

@@ -1,4 +1,3 @@
-//nolint:revive // data structures
 package models
 
 import "time"

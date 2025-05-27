@@ -1,4 +1,3 @@
-//nolint:revive // test server
 package main
 
 import (
@@ -251,7 +250,7 @@ func initMockData() {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
 			} else {
-				userRole = UserRole{ID: 999, Type: "fallback", Name: "Fallback Role"}
+				userRole = UserRole{ID: 999, Type: "fallback", Name: "Fallback Role"} //nolint:govet // Type field used for JSON serialization
 			}
 			jobPerms = append(jobPerms, JobPermission{
 				ID: nextPermissionID, JobID: job.ID, UserRoleID: userRole.ID,
@@ -283,7 +282,7 @@ func initMockData() {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
 			} else {
-				userRole = UserRole{ID: 998, Type: "fallback_future", Name: "Fallback Future Role"}
+				userRole = UserRole{ID: 998, Type: "fallback_future", Name: "Fallback Future Role"} //nolint:govet // Type field used for JSON serialization
 			}
 			var officeID *int64
 			var extOfficeID *string
@@ -816,11 +815,11 @@ func main() {
 	log.Printf("Test User Not Found error: http://localhost:%s/v1/users/99999", port)
 
 	server := &http.Server{
-		Addr:           ":" + port,
-		Handler:        mux,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		IdleTimeout:    120 * time.Second,
+		Addr:         ":" + port,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 	err := server.ListenAndServe()
 	if err != nil {

@@ -1,8 +1,10 @@
+// Package client provides a client for interacting with the Greenhouse Harvest API.
 package client
 
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -23,6 +25,7 @@ const (
 	userFutureJobPermissionsEPv1 = "v1/users/%d/permissions/future_jobs"
 )
 
+// GreenhouseClient is a client for the Greenhouse Harvest API.
 type GreenhouseClient struct {
 	user            string
 	onBehalfOfEmail string
@@ -94,6 +97,7 @@ func (c *GreenhouseClient) GetAdminByEmail(ctx context.Context, email string) (*
 	return user, nil
 }
 
+// CreateUserAccount creates a new user account in Greenhouse.
 // https://developers.greenhouse.io/harvest.html#post-add-user.
 func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID int, email, firstName, lastName string) (*models.User, error) {
 	body := map[string]interface{}{
@@ -123,6 +127,7 @@ func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID i
 	return &created, nil
 }
 
+// GetOnBehalfOfEmail returns the email used for on-behalf-of requests.
 func (c *GreenhouseClient) GetOnBehalfOfEmail() string {
 	return c.onBehalfOfEmail
 }
@@ -160,6 +165,7 @@ func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) erro
 	return nil
 }
 
+// GetUserByEmail retrieves a user by their email address.
 func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	endpoint, err := url.JoinPath(baseURL, usersEPv1)
 	if err != nil {
@@ -428,17 +434,21 @@ func (c *GreenhouseClient) doRequest(
 			if apiErr.Errors[0].Field != "" {
 				errDetail += fmt.Sprintf(" (field: %s)", apiErr.Errors[0].Field)
 			}
-			return res, fmt.Errorf("greenhouse API error: %s", errDetail)
+
+			return res, errors.Join(err, fmt.Errorf("greenhouse API error: %s", errDetail))
 		}
+
 		if apiErr.APIMessage != "" {
-			return res, fmt.Errorf("greenhouse API error: %s", apiErr.APIMessage)
+			return res, errors.Join(err, fmt.Errorf("greenhouse API message error: %w", err))
 		}
-		return res, fmt.Errorf("request failed: %w", err)
+
+		return res, errors.Join(err, fmt.Errorf("request failed: %w", err))
 	}
 
 	return res, nil
 }
 
+// New creates a new GreenhouseClient with the given credentials.
 func New(ctx context.Context, username, onBehalfOfEmail string) (*GreenhouseClient, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {

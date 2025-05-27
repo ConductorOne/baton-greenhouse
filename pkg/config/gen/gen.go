@@ -1,3 +1,4 @@
+// Package main generates configuration code for the Greenhouse connector.
 package main
 
 import (

@@ -70,7 +70,7 @@ func (c *GreenhouseClient) ListUsers(ctx context.Context, next string) ([]models
 	if err != nil {
 		return nil, nil, "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	// see https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -122,7 +122,7 @@ func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID i
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	return &created, nil
 }
@@ -160,7 +160,7 @@ func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) erro
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	return nil
 }
@@ -191,7 +191,7 @@ func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*m
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	return &user, nil
 }
@@ -240,7 +240,7 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, tokens 
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -297,7 +297,7 @@ func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, t
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -346,7 +346,7 @@ func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string
 	if err != nil {
 		return nil, &rateLimitData, "", err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	// Pagination Docs https://developers.greenhouse.io/harvest.html#pagination
 	link := &models.Link{}
@@ -377,7 +377,7 @@ func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) 
 	if err != nil {
 		return nil, &rateLimitData, err
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer resp.Body.Close() //nolint:errcheck // standard pattern, error is not critical
 
 	return userData, &rateLimitData, nil
 }

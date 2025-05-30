@@ -5,8 +5,17 @@ import (
 )
 
 var (
-	usernameField   = field.StringField("username", field.WithRequired(true), field.WithDescription("The username is your Greenhouse API token"))
-	onBehalfOfField = field.StringField("on_behalf_of_email", field.WithRequired(false), field.WithDescription("Email of the Site Admin user"))
+	usernameField   = field.StringField(
+		"username",
+		field.WithDisplayName("Greenhouse username (API token)"),
+		field.WithDescription("The username is your Greenhouse API token"),
+		field.WithIsSecret(true),
+	)
+	onBehalfOfField = field.StringField(
+		"on_behalf_of_email",
+		field.WithDisplayName("On behalf of"),
+		field.WithDescription("Email of the Site Admin user"),
+	)
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a
@@ -18,10 +27,15 @@ var (
 // Config defines the configuration fields for the Greenhouse connector.
 //
 //go:generate go run ./gen
-var Config = field.NewConfiguration([]field.SchemaField{
-	usernameField,
-	onBehalfOfField,
-})
+var Config = field.NewConfiguration(
+	[]field.SchemaField{
+		usernameField,
+		onBehalfOfField,
+	},
+	field.WithConnectorDisplayName("Greenhouse"),
+	field.WithHelpUrl("/docs/baton/greenhouse"),
+	field.WithIconUrl("/static/app-icons/greenhouse.svg"),
+)
 
 // ValidateConfig is run after the configuration is loaded, and should return an
 // error if it isn't valid. Implementing this function is optional, it only

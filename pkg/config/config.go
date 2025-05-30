@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	usernameField   = field.StringField(
+	usernameField = field.StringField(
 		"username",
 		field.WithDisplayName("Greenhouse username (API token)"),
 		field.WithDescription("The username is your Greenhouse API token"),

@@ -29,13 +29,13 @@ func parseIntoUserResource(user models.User) (*v2.Resource, error) {
 	}
 
 	userResource, err := resource.NewUserResource(
-		fmt.Sprintf("%s %s", user.Name, user.LastName),
+		fmt.Sprintf("%s %s", user.FirstName, user.LastName),
 		userResourceType,
 		user.ID,
 		options,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("cannot make user resource from user «%s %s» (id «%d»)", user.Name, user.LastName, user.ID)
+		return nil, fmt.Errorf("cannot make user resource from user «%s %s» (id «%d»)", user.FirstName, user.LastName, user.ID)
 	}
 
 	return userResource, nil

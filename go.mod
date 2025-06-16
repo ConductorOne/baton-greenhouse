@@ -5,7 +5,7 @@ go 1.23.4
 toolchain go1.23.8
 
 require (
-	github.com/conductorone/baton-sdk v0.3.11
+	github.com/conductorone/baton-sdk v0.3.12
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0

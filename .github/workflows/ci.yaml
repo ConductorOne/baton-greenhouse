@@ -4,12 +4,12 @@ jobs:
   go-lint:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
-      - name: Checkout code
-        uses: actions/checkout@v4
+          go-version-file: go.mod
       - name: Run linters
         uses: golangci/golangci-lint-action@v8
         with:
@@ -18,17 +18,16 @@ jobs:
   go-test:
     strategy:
       matrix:
-        go-version: [1.22.x]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Install Go
+      - name: Checkout code
         if: success()
+        uses: actions/checkout@v4
+      - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v4
+          go-version-file: go.mod
       - name: go tests
         run: (set -o pipefail && go test -v -covermode=count -json ./... | tee test.json)
       - name: annotate go tests
@@ -39,53 +38,23 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    # Define any services needed for the test suite (or delete this section)
-    # services:
-    #   postgres:
-    #     image: postgres:16
-    #     ports:
-    #       - "5432:5432"
-    #     env:
-    #       POSTGRES_PASSWORD: secretpassword
     env:
       BATON_LOG_LEVEL: debug
-      # Add any environment variables needed to run baton-greenhouse
-      # BATON_BASE_URL: 'http://localhost:8080'
-      # BATON_ACCESS_TOKEN: 'secret_token'
-      # The following parameters are passed to grant/revoke commands
-      # Change these to the correct IDs for your test data
-      CONNECTOR_GRANT: 'grant:entitlement:group:1234:member:user:9876'
-      CONNECTOR_ENTITLEMENT: 'entitlement:group:1234:member'
-      CONNECTOR_PRINCIPAL: 'user:9876'
-      CONNECTOR_PRINCIPAL_TYPE: 'user'
+      BATON_USERNAME: ${{ secrets.USERNAME }}
+      BATON_ON_BEHALF_OF_EMAIL: ${{ secrets.EMAIL }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22.x
-      - name: Checkout code
-        uses: actions/checkout@v4
-      # Install any dependencies here (or delete this)
-      # - name: Install postgres client
-      #   run: sudo apt install postgresql-client
-      # Run any fixture setup here (or delete this.)
-      # - name: Import sql into postgres
-      #   run: psql -h localhost --user postgres -f environment.sql
-      #   env:
-      #     PGPASSWORD: secretpassword
+          go-version-file: go.mod
       - name: Build baton-greenhouse
         run: go build ./cmd/baton-greenhouse
-      - name: Run baton-greenhouse
-        run: ./baton-greenhouse --username="${{ secrets.USERNAME }}" --on_behalf_of_email="${{ secrets.EMAIL }}"
-
-      - name: Install baton
-        run: ./scripts/get-baton.sh && mv baton /usr/local/bin
-
-      - name: Check for grants before revoking
-
-        run:
-          baton grants --entitlement=role:site_admin:assigned
-
-
-      - name: Revoke grant
-        run: ./baton-greenhouse --username="${{ secrets.USERNAME }}" --on_behalf_of_email="${{ secrets.EMAIL }}" --revoke-grant=role:site_admin:assigned:user:4485008007
+      - name: Sync test
+        uses: ConductorOne/github-workflows/actions/sync-test@v2
+        with:
+          connector: ./baton-greenhouse
+          baton-entitlement: 'role:site_admin:assigned'
+          baton-principal: '4485008007'
+          baton-principal-type: 'user'

@@ -18,6 +18,8 @@ type userBuilder struct {
 	client *client.GreenhouseClient
 }
 
+var _ connectorbuilder.AccountManager = &userBuilder{}
+
 func (b *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return userResourceType
 }
@@ -178,7 +180,7 @@ func (b *userBuilder) CreateAccountCapabilityDetails(
 func (b *userBuilder) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
-	_ *v2.CredentialOptions,
+	_ *v2.LocalCredentialOptions,
 ) (
 	connectorbuilder.CreateAccountResponse,
 	[]*v2.PlaintextData,

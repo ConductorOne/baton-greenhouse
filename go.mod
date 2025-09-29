@@ -3,7 +3,7 @@ module github.com/conductorone/baton-greenhouse
 go 1.25
 
 require (
-	github.com/conductorone/baton-sdk v0.4.2
+	github.com/conductorone/baton-sdk v0.4.5
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
@@ -12,6 +12,7 @@ require (
 require (
 	filippo.io/age v1.2.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/aws/aws-lambda-go v1.47.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.10 // indirect

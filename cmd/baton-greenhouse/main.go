@@ -46,7 +46,7 @@ func getConnector(ctx context.Context, ghc *cfg.Greenhouse) (types.ConnectorServ
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, ghc.On_behalf_of_email, ghc.Username)
+	cb, err := connector.New(ctx, ghc.On_behalf_of_email, ghc.Username, ghc.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

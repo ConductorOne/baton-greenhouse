@@ -16,6 +16,10 @@ var (
 		field.WithDisplayName("On behalf of"),
 		field.WithDescription("Email of the Site Admin user"),
 	)
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the Greenhouse API URL (for testing)"),
+	)
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a
@@ -31,6 +35,7 @@ var Config = field.NewConfiguration(
 	[]field.SchemaField{
 		usernameField,
 		onBehalfOfField,
+		BaseURLField,
 	},
 	field.WithConnectorDisplayName("Greenhouse"),
 	field.WithHelpUrl("/docs/baton/greenhouse"),

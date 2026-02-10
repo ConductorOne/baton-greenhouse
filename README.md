@@ -1,6 +1,6 @@
 ![Baton Logo](./docs/images/baton-logo.png)
 
-# `baton-greenhouse` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-greenhouse.svg)](https://pkg.go.dev/github.com/conductorone/baton-greenhouse) ![main ci](https://github.com/conductorone/baton-greenhouse/actions/workflows/main.yaml/badge.svg)
+# `baton-greenhouse` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-greenhouse.svg)](https://pkg.go.dev/github.com/conductorone/baton-greenhouse) ![ci](https://github.com/conductorone/baton-greenhouse/actions/workflows/ci.yaml/badge.svg) ![verify](https://github.com/conductorone/baton-greenhouse/actions/workflows/verify.yaml/badge.svg)
 
 `baton-greenhouse` is a connector for [Greenhouse](https://www.greenhouse.com/) built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 

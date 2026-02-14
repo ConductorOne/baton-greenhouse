@@ -19,6 +19,7 @@ var (
 	BaseURLField = field.StringField(
 		"base-url",
 		field.WithDescription("Override the Greenhouse API URL (for testing)"),
+		field.WithHidden(true),
 	)
 
 	// FieldRelationships defines relationships between the fields listed in

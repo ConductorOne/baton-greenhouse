@@ -447,7 +447,7 @@ func (c *GreenhouseClient) doRequest(
 			return res, errors.Join(err, fmt.Errorf("greenhouse API message error: %s", apiErr.APIMessage))
 		}
 
-		return res, errors.Join(err, fmt.Errorf("request failed: %w", err))
+		return res, fmt.Errorf("request failed: %w", err)
 	}
 
 	return res, nil

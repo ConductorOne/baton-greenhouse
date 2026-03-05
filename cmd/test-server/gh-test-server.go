@@ -236,7 +236,7 @@ func initMockData() {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
 			} else {
-				userRole = UserRole{ID: 999, RoleType: "fallback", Name: "Fallback Role"} //nolint:govet
+				userRole = UserRole{ID: 999, RoleType: "fallback", Name: "Fallback Role"} //nolint:govet // composite literal field order matches struct definition
 			}
 			jobPerms = append(jobPerms, JobPermission{
 				ID: nextPermissionID, JobID: job.ID, UserID: user.ID, RoleID: userRole.ID,
@@ -268,7 +268,7 @@ func initMockData() {
 					userRole = mockUserRoles[rng.Intn(len(mockUserRoles))]
 				}
 			} else {
-				userRole = UserRole{ID: 998, RoleType: "fallback_future", Name: "Fallback Future Role"} //nolint:govet
+				userRole = UserRole{ID: 998, RoleType: "fallback_future", Name: "Fallback Future Role"} //nolint:govet // composite literal field order matches struct definition
 			}
 			var officeID *int64
 			var deptID *int64
@@ -450,7 +450,7 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	tokenResp := TokenResponse{
 		TokenType:   "Bearer",
-		AccessToken: "mock-jwt-token-for-testing",
+		AccessToken: "mock-jwt-token-for-testing", //nolint:gosec // test server mock data
 		ExpiresAt:   time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 	}
 

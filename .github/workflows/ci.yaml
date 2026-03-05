@@ -5,8 +5,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BATON_LOG_LEVEL: debug
-      BATON_USERNAME: ${{ secrets.USERNAME }}
-      BATON_ON_BEHALF_OF_EMAIL: ${{ secrets.EMAIL }}
+      BATON_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+      BATON_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+      BATON_ON_BEHALF_OF_USER_ID: ${{ secrets.ON_BEHALF_OF_USER_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

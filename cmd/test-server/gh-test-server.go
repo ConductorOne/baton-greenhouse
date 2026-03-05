@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -117,7 +118,7 @@ type FutureJobPermission struct {
 // TokenResponse mimics the v3 auth token response.
 type TokenResponse struct {
 	TokenType   string `json:"token_type"`
-	AccessToken string `json:"access_token"`
+	AccessToken string `json:"access_token"` //nolint:gosec // struct field for API response, not a credential
 	ExpiresAt   string `json:"expires_at"`
 }
 
@@ -448,9 +449,9 @@ func tokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenResp := TokenResponse{
+	tokenResp := TokenResponse{ //nolint:gosec // test server mock data, not real credentials
 		TokenType:   "Bearer",
-		AccessToken: "mock-jwt-token-for-testing", //nolint:gosec // test server mock data
+		AccessToken: "mock-jwt-token-for-testing",
 		ExpiresAt:   time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 	}
 
@@ -696,6 +697,7 @@ func main() {
 	}
 	err := server.ListenAndServe()
 	if err != nil {
-		log.Fatalf("Could not start server: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Could not start server: %s\n", err)
+		os.Exit(1)
 	}
 }

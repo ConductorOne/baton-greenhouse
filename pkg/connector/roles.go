@@ -123,7 +123,7 @@ func (b *roleBuilder) Grant(_ context.Context, _ *v2.Resource, _ *v2.Entitlement
 }
 
 // Revoke removes the Site Admin role from the user by revoking their permissions.
-// v3 endpoint: POST /v3/users/{id}/revoke_permissions
+// v3 endpoint: POST /v3/users/{id}/revoke_permissions.
 func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
 	id := grant.Principal.Id.Resource
 

@@ -81,7 +81,7 @@ func (c *GreenhouseClient) ensureToken(ctx context.Context) (string, error) {
 	req.Header.Set("Authorization", "Basic "+basicAuth)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // authURL is a hardcoded constant, not user-supplied
 	if err != nil {
 		return "", fmt.Errorf("token request failed: %w", err)
 	}
@@ -214,7 +214,7 @@ func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, email, firstNa
 }
 
 // RevokeUserSiteAdmin revokes all permissions from a user (setting them to basic).
-// v3 endpoint: POST /v3/users/{id}/revoke_permissions
+// v3 endpoint: POST /v3/users/{id}/revoke_permissions.
 func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) error {
 	endpoint, err := url.JoinPath(baseURL, fmt.Sprintf(revokePermissionsEP, id))
 	if err != nil {

@@ -19,7 +19,7 @@ func TestUrlAddQuery(t *testing.T) {
 }
 
 func TestSerializeDeserializeTokens(t *testing.T) {
-	tokens := JobPermissionPaginationTokens{
+	tokens := JobPermissionPaginationTokens{ //nolint:gosec // pagination token URLs, not credentials
 		JobPermissionsToken:       "https://harvest.greenhouse.io/v3/user_job_permissions?cursor=abc123",
 		FutureJobPermissionsToken: RequestCompleted,
 	}

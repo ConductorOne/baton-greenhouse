@@ -54,6 +54,6 @@ type FutureJobPermission struct {
 // TokenResponse represents the response from the Greenhouse auth token endpoint.
 type TokenResponse struct {
 	TokenType   string `json:"token_type"`
-	AccessToken string `json:"access_token"`
+	AccessToken string `json:"access_token"` //nolint:gosec // struct field for API response deserialization
 	ExpiresAt   string `json:"expires_at"`
 }

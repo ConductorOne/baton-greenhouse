@@ -24,21 +24,19 @@ func (l *Link) UnmarshalText(text []byte) error {
 	}
 	parts := sep.Split(string(text), -1)
 
-	if len(parts) < 2 || len(parts) == 3 {
+	// v3 API may return just a single rel="next" link (2 parts) or
+	// both rel="next" and rel="last" (4 parts). v1 had stricter parsing.
+	if len(parts) < 2 {
 		return fmt.Errorf("malformed input: %s", string(text))
 	}
 
 	for i, v := range parts {
 		if strings.Contains(v, linkNext) {
-			l.Next = cleanLinks.ReplaceAllString(parts[i-1], "")
+			l.Next = strings.TrimSpace(cleanLinks.ReplaceAllString(parts[i-1], ""))
 		}
 		if strings.Contains(v, linkLast) {
-			l.Last = cleanLinks.ReplaceAllString(parts[i-1], "")
+			l.Last = strings.TrimSpace(cleanLinks.ReplaceAllString(parts[i-1], ""))
 		}
-	}
-
-	if l.Next == l.Last && len(parts) == 4 {
-		return fmt.Errorf("malformed input: %s", string(text))
 	}
 
 	return nil

@@ -19,10 +19,10 @@ func parseIntoUserResource(user models.User) (*v2.Resource, error) {
 	options := []resource.UserTraitOption{
 		resource.WithUserProfile(profile),
 		resource.WithEmployeeID(user.EmployeeID),
-		resource.WithEmail(user.PrimaryEmailAddress, true),
+		resource.WithEmail(user.PrimaryEmail, true),
 	}
 
-	if user.Disabled {
+	if user.Deactivated {
 		options = append(options, resource.WithStatus(v2.UserTrait_Status_STATUS_DISABLED))
 	} else {
 		options = append(options, resource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED))

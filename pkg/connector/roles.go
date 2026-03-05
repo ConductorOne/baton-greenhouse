@@ -23,9 +23,8 @@ type roleBuilder struct {
 const (
 	rolePermissionName = "assigned"
 
-	// User Roles can be type 'interviewer' or 'job_admin'.
-	roleTypeInterviewer = "interviewer"
-	roleTypeJobAdmin    = "job_admin"
+	// User Roles can be type 'deprecated_interviewer' or 'job_admin' or 'site_admin' in v3.
+	roleTypeJobAdmin = "job_admin"
 
 	// This is a constant used to map the Entitlement created for the Site Admins.
 	roleTypeSiteAdmin = "site_admin"
@@ -49,18 +48,19 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 
 	for _, userRole := range userRoles {
 		// Only the roles of type "Job Admin" will be created.
-		if userRole.Type != roleTypeJobAdmin {
+		// In v3, the field is 'role_type' instead of 'type'.
+		if userRole.RoleType != roleTypeJobAdmin {
 			continue
 		}
 
 		newRoleResource, err := createRoleResource(
 			strconv.Itoa(userRole.ID),
 			userRole.Name,
-			userRole.Type,
+			userRole.RoleType,
 		)
 		if err != nil {
 			logger.Debug(
-				fmt.Sprintf("Role resource creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
+				fmt.Sprintf("Role resource creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.RoleType),
 				zap.Error(err),
 			)
 			return nil, "", nil, err
@@ -71,11 +71,11 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		newRoleResource, err = createRoleResource(
 			fmt.Sprintf("future-job:%d", userRole.ID),
 			fmt.Sprintf("Future Job: %s", userRole.Name),
-			userRole.Type,
+			userRole.RoleType,
 		)
 		if err != nil {
 			logger.Debug(
-				fmt.Sprintf("Role resource (future-job) creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
+				fmt.Sprintf("Role resource (future-job) creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.RoleType),
 				zap.Error(err),
 			)
 			return nil, "", nil, err
@@ -122,7 +122,8 @@ func (b *roleBuilder) Grant(_ context.Context, _ *v2.Resource, _ *v2.Entitlement
 	return nil, nil
 }
 
-// Revoke removes the Site Admin role from the user by setting their permission level to "basic".
+// Revoke removes the Site Admin role from the user by revoking their permissions.
+// v3 endpoint: POST /v3/users/{id}/revoke_permissions
 func (b *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
 	id := grant.Principal.Id.Resource
 
@@ -145,12 +146,14 @@ func extractUniqueUserRolesIDs(permissionList interface{}) ([]int, error) {
 	switch sliceData := permissionList.(type) {
 	case []models.JobPermission:
 		for _, jobPermission := range sliceData {
-			userRoleIDs[jobPermission.UserRoleID] = struct{}{}
+			// In v3, the field is 'role_id' instead of 'user_role_id'.
+			userRoleIDs[jobPermission.RoleID] = struct{}{}
 		}
 
 	case []models.FutureJobPermission:
 		for _, futureJobPermission := range sliceData {
-			userRoleIDs[futureJobPermission.UserRoleID] = struct{}{}
+			// In v3, the field is 'role_id' instead of 'user_role_id'.
+			userRoleIDs[futureJobPermission.RoleID] = struct{}{}
 		}
 
 	default:

@@ -93,16 +93,32 @@
       }
     },
     {
-      "name": "username",
-      "displayName": "Greenhouse username (API token)",
-      "description": "The username is your Greenhouse API token",
-      "isSecret": true,
-      "stringField": {}
+      "name": "client_id",
+      "displayName": "Greenhouse Client ID",
+      "description": "The Client ID for Greenhouse Harvest API v3 OAuth2 authentication",
+      "isRequired": true,
+      "stringField": {
+        "rules": {
+          "isRequired": true
+        }
+      }
     },
     {
-      "name": "on_behalf_of_email",
-      "displayName": "On behalf of",
-      "description": "Email of the Site Admin user",
+      "name": "client_secret",
+      "displayName": "Greenhouse Client Secret",
+      "description": "The Client Secret for Greenhouse Harvest API v3 OAuth2 authentication",
+      "isRequired": true,
+      "isSecret": true,
+      "stringField": {
+        "rules": {
+          "isRequired": true
+        }
+      }
+    },
+    {
+      "name": "on_behalf_of_user_id",
+      "displayName": "On behalf of (User ID)",
+      "description": "Greenhouse User ID of a Site Admin to act on behalf of (used as the sub claim in the JWT token)",
       "stringField": {}
     }
   ],

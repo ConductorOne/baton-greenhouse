@@ -57,12 +57,6 @@ func (b *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *paginat
 
 // Grants function will create the Grants for the Roles. This should upgrade performance and reduce sync time.
 func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	// TODO: This functions requests all the Job Permissions of users and creates the Grants for the Roles with that data.
-	//  However, users are likely to have assigned roles on jobs that are not 'job_admin' type.
-	//  Creating Grants for them will cause trouble since those entitlements won't be found when trying to put the data together.
-	//  We could have a cache with the available Roles and validate the IDs of the roles to only create Grants for those
-	//  that are actually job admin roles.
-
 	var roleGrants []*v2.Grant
 	var outAnnotations annotations.Annotations
 	userID := userResource.Id
@@ -72,7 +66,7 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		return nil, "", nil, err
 	}
 
-	user, rateLimitData, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
+	user, rateLimitData, err := b.client.GetUserByID(ctx, userResource.Id.Resource)
 	if err != nil {
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
@@ -98,7 +92,7 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 
 	// All the Job Permissions of the user will be requested in order to create a grant for any role
 	// for which the user has at least one Job with it.
-	userJobPermissions, rateLimitData, err := b.client.GetJobPermissionsOfAUser(ctx, &tokens, user.ID)
+	userJobPermissions, rateLimitData, err := b.client.ListUserJobPermissions(ctx, &tokens, user.ID)
 	if err != nil {
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
@@ -125,7 +119,7 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 
 	// Retrieves the list of 'Future Job Permissions' assigned to the user.
 	// These are Job Permissions that will be granted to the user when a job is created in a particular Department/Office combination.
-	userFutureJobPermissions, rateLimitData, err := b.client.GetFutureJobPermissionsOfAUser(ctx, &tokens, user.ID)
+	userFutureJobPermissions, rateLimitData, err := b.client.ListFutureJobPermissions(ctx, &tokens, user.ID)
 	if err != nil {
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
@@ -202,12 +196,9 @@ func (b *userBuilder) CreateAccount(
 		return nil, nil, nil, fmt.Errorf("missing or invalid 'last_name' in profile")
 	}
 
-	user, err := b.client.GetAdminByEmail(ctx, b.client.GetOnBehalfOfEmail())
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to resolve user ID: %w", err)
-	}
-
-	createdUser, err := b.client.CreateUserAccount(ctx, user.ID, email, firstName, lastName)
+	// In v3, the on-behalf-of user is specified via the 'sub' claim in the JWT token
+	// during authentication, so we don't need to pass it separately here.
+	createdUser, err := b.client.CreateUserAccount(ctx, email, firstName, lastName)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to create user: %w", err)
 	}

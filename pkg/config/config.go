@@ -1,20 +1,29 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/conductorone/baton-sdk/pkg/field"
 )
 
 var (
-	usernameField = field.StringField(
-		"username",
-		field.WithDisplayName("Greenhouse username (API token)"),
-		field.WithDescription("The username is your Greenhouse API token"),
+	clientIDField = field.StringField(
+		"client_id",
+		field.WithDisplayName("Greenhouse Client ID"),
+		field.WithDescription("The Client ID for Greenhouse Harvest API v3 OAuth2 authentication"),
+		field.WithRequired(true),
+	)
+	clientSecretField = field.StringField(
+		"client_secret",
+		field.WithDisplayName("Greenhouse Client Secret"),
+		field.WithDescription("The Client Secret for Greenhouse Harvest API v3 OAuth2 authentication"),
+		field.WithRequired(true),
 		field.WithIsSecret(true),
 	)
-	onBehalfOfField = field.StringField(
-		"on_behalf_of_email",
-		field.WithDisplayName("On behalf of"),
-		field.WithDescription("Email of the Site Admin user"),
+	onBehalfOfUserIDField = field.StringField(
+		"on_behalf_of_user_id",
+		field.WithDisplayName("On behalf of (User ID)"),
+		field.WithDescription("Greenhouse User ID of a Site Admin to act on behalf of (used as the sub claim in the JWT token)"),
 	)
 
 	// FieldRelationships defines relationships between the fields listed in
@@ -29,8 +38,9 @@ var (
 //go:generate go run ./gen
 var Config = field.NewConfiguration(
 	[]field.SchemaField{
-		usernameField,
-		onBehalfOfField,
+		clientIDField,
+		clientSecretField,
+		onBehalfOfUserIDField,
 	},
 	field.WithConnectorDisplayName("Greenhouse"),
 	field.WithHelpUrl("/docs/baton/greenhouse"),
@@ -41,6 +51,12 @@ var Config = field.NewConfiguration(
 // error if it isn't valid. Implementing this function is optional, it only
 // needs to perform extra validations that cannot be encoded with configuration
 // parameters.
-func ValidateConfig(_ *Greenhouse) error {
+func ValidateConfig(cfg *Greenhouse) error {
+	if cfg.Client_id == "" {
+		return fmt.Errorf("client_id is required for Greenhouse Harvest API v3")
+	}
+	if cfg.Client_secret == "" {
+		return fmt.Errorf("client_secret is required for Greenhouse Harvest API v3")
+	}
 	return nil
 }

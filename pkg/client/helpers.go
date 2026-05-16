@@ -4,21 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	liburl "net/url"
-	"regexp"
 	"strconv"
-	"strings"
-
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
 
 // RequestCompleted is a placeholder for the PermissionsToken when the query is completed.
 const RequestCompleted = "request_completed_no_more_pages"
-
-var findNextURL = regexp.MustCompile(`\<([^>]+)\>`)
-
-func withBasicAuth(val string) uhttp.RequestOption {
-	return uhttp.WithHeader("Authorization", val)
-}
 
 func urlAddQuery(url string, params map[string]interface{}) (string, error) {
 	p := liburl.Values{}
@@ -45,14 +35,7 @@ func urlAddQuery(url string, params map[string]interface{}) (string, error) {
 	return parsed.String(), nil
 }
 
-func getNextLink(raw string) string {
-	found := strings.Replace(findNextURL.FindString(raw), "<", "", 1)
-	return strings.Replace(found, ">", "", 1)
-}
-
 // JobPermissionPaginationTokens holds pagination tokens for job permission requests.
-// This pagination method could be modified to use the SDKs pagination bag instead.
-// Probably, that would be the best way to go. It's something to analyze.
 type JobPermissionPaginationTokens struct {
 	JobPermissionsToken       string
 	FutureJobPermissionsToken string

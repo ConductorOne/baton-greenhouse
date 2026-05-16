@@ -37,3 +37,25 @@ func TestUnmarshalLinkOnlyLast(t *testing.T) {
 	require.Equal(t, "", link.Next)
 	require.Equal(t, "https://example.com/?page=1", link.Last)
 }
+
+func TestUnmarshalLinkV3CursorNext(t *testing.T) {
+	input := []byte(`<https://harvest.greenhouse.io/v3/users?cursor=eyJpZCI6MTAwfQ>; rel="next"`)
+	link := &Link{}
+
+	err := link.UnmarshalText(input)
+	require.NoError(t, err)
+
+	require.Equal(t, "https://harvest.greenhouse.io/v3/users?cursor=eyJpZCI6MTAwfQ", link.Next)
+	require.Equal(t, "", link.Last)
+}
+
+func TestUnmarshalLinkEmpty(t *testing.T) {
+	input := []byte(``)
+	link := &Link{}
+
+	err := link.UnmarshalText(input)
+	require.NoError(t, err)
+
+	require.Equal(t, "", link.Next)
+	require.Equal(t, "", link.Last)
+}

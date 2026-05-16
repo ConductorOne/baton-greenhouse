@@ -4,11 +4,12 @@ package config
 import "reflect" 
 
 type Greenhouse struct {
-	Username string `mapstructure:"username"`
-	On_behalf_of_email string `mapstructure:"on_behalf_of_email"`
+	Client_id string `mapstructure:"client_id"`
+	Client_secret string `mapstructure:"client_secret"`
+	On_behalf_of_user_id string `mapstructure:"on_behalf_of_user_id"`
 }
 
-func (c* Greenhouse) findFieldByTag(tagValue string) (any, bool) {
+func (c *Greenhouse) findFieldByTag(tagValue string) (any, bool) {
 	v := reflect.ValueOf(c).Elem() // Dereference pointer to struct
 	t := v.Type()
 
@@ -40,11 +41,13 @@ func (c *Greenhouse) GetString(fieldName string) string {
 	if !ok {
 		return ""
 	}
-	t, ok := v.(string)
-	if !ok {
-		panic("wrong type")
+	if t, ok := v.(string); ok {
+		return t
 	}
-	return t
+	if t, ok := v.([]byte); ok {
+		return string(t)
+	}
+	panic("wrong type")
 }
 
 func (c *Greenhouse) GetInt(fieldName string) int {

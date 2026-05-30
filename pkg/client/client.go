@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	baseURL = "https://harvest.greenhouse.io"
+	defaultBaseURL = "https://harvest.greenhouse.io"
 
 	usersEPv1                    = "v1/users"
 	userRolesEPv1                = "v1/user_roles"
@@ -30,6 +30,7 @@ type GreenhouseClient struct {
 	user            string
 	onBehalfOfEmail string
 	httpClient      *uhttp.BaseHttpClient
+	baseURL         string
 }
 
 func makeAuthorization(user string) string {
@@ -40,7 +41,7 @@ func makeAuthorization(user string) string {
 
 // ListUsers implemented based on the docs https://developers.greenhouse.io/harvest.html#get-list-users.
 func (c *GreenhouseClient) ListUsers(ctx context.Context, next string) ([]models.User, *v2.RateLimitDescription, string, error) {
-	joinedURL, err := url.JoinPath(baseURL, usersEPv1)
+	joinedURL, err := url.JoinPath(c.baseURL, usersEPv1)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -107,7 +108,7 @@ func (c *GreenhouseClient) CreateUserAccount(ctx context.Context, onBehalfOfID i
 		"send_email_invite": true,
 	}
 
-	endpoint, err := url.JoinPath(baseURL, usersEPv1)
+	endpoint, err := url.JoinPath(c.baseURL, usersEPv1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to join path for user creation: %w", err)
 	}
@@ -142,7 +143,7 @@ func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) erro
 		"level": "basic",
 	}
 
-	endpoint, err := url.JoinPath(baseURL, "v1/users/permission_level")
+	endpoint, err := url.JoinPath(c.baseURL, "v1/users/permission_level")
 	if err != nil {
 		return fmt.Errorf("failed to join path for revoke: %w", err)
 	}
@@ -167,7 +168,7 @@ func (c *GreenhouseClient) RevokeUserSiteAdmin(ctx context.Context, id int) erro
 
 // GetUserByEmail retrieves a user by their email address.
 func (c *GreenhouseClient) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-	endpoint, err := url.JoinPath(baseURL, usersEPv1)
+	endpoint, err := url.JoinPath(c.baseURL, usersEPv1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build URL: %w", err)
 	}
@@ -212,7 +213,7 @@ func (c *GreenhouseClient) GetJobPermissionsOfAUser(ctx context.Context, tokens 
 		return nil, nil, nil
 	}
 
-	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userJobPermissionsEPv1, userID))
+	endpointURL, err := url.JoinPath(c.baseURL, fmt.Sprintf(userJobPermissionsEPv1, userID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -269,7 +270,7 @@ func (c *GreenhouseClient) GetFutureJobPermissionsOfAUser(ctx context.Context, t
 		return nil, nil, nil
 	}
 
-	endpointURL, err := url.JoinPath(baseURL, fmt.Sprintf(userFutureJobPermissionsEPv1, userID))
+	endpointURL, err := url.JoinPath(c.baseURL, fmt.Sprintf(userFutureJobPermissionsEPv1, userID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -320,7 +321,7 @@ func (c *GreenhouseClient) ListUserRoles(ctx context.Context, nextPageURL string
 	var userRoles []models.UserRole
 	var rateLimitData v2.RateLimitDescription
 
-	endpointURL, err := url.JoinPath(baseURL, userRolesEPv1)
+	endpointURL, err := url.JoinPath(c.baseURL, userRolesEPv1)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -363,7 +364,7 @@ func (c *GreenhouseClient) RetrieveUserData(ctx context.Context, userID string) 
 	var userData *models.User
 	var rateLimitData v2.RateLimitDescription
 
-	endpointURL, err := url.JoinPath(baseURL, usersEPv1, userID)
+	endpointURL, err := url.JoinPath(c.baseURL, usersEPv1, userID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -449,15 +450,20 @@ func (c *GreenhouseClient) doRequest(
 }
 
 // New creates a new GreenhouseClient with the given credentials.
-func New(ctx context.Context, username, onBehalfOfEmail string) (*GreenhouseClient, error) {
+func New(ctx context.Context, username, onBehalfOfEmail, baseURL string) (*GreenhouseClient, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {
 		return nil, err
+	}
+
+	if baseURL == "" {
+		baseURL = defaultBaseURL
 	}
 
 	return &GreenhouseClient{
 		user:            username,
 		onBehalfOfEmail: onBehalfOfEmail,
 		httpClient:      uhttp.NewBaseHttpClient(httpClient),
+		baseURL:         baseURL,
 	}, nil
 }

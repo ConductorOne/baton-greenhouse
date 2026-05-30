@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -821,8 +822,8 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatalf("Could not start server: %s\n", err)
+	if err := server.ListenAndServe(); err != nil {
+		log.Printf("Could not start server: %s\n", err)
+		os.Exit(1)
 	}
 }

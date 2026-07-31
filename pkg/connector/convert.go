@@ -17,15 +17,18 @@ func parseIntoUserResource(user models.User) (*v2.Resource, error) {
 	}
 
 	options := []resource.UserTraitOption{
-		resource.WithUserProfile(profile),
 		resource.WithEmployeeID(user.EmployeeID),
 		resource.WithEmail(user.PrimaryEmailAddress, true),
 	}
 
+	resourceOptions := []resource.ResourceOption{
+		resource.WithResourceProfile(profile),
+	}
+
 	if user.Disabled {
-		options = append(options, resource.WithStatus(v2.UserTrait_Status_STATUS_DISABLED))
+		resourceOptions = append(resourceOptions, resource.WithResourceStatus(v2.Status_RESOURCE_STATUS_DISABLED, ""))
 	} else {
-		options = append(options, resource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED))
+		resourceOptions = append(resourceOptions, resource.WithResourceStatus(v2.Status_RESOURCE_STATUS_ENABLED, ""))
 	}
 
 	userResource, err := resource.NewUserResource(
@@ -33,6 +36,7 @@ func parseIntoUserResource(user models.User) (*v2.Resource, error) {
 		userResourceType,
 		user.ID,
 		options,
+		resourceOptions...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot make user resource from user «%s %s» (id «%d»)", user.FirstName, user.LastName, user.ID)

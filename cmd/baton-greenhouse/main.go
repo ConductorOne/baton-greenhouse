@@ -1,60 +1,25 @@
-// Package main is the entry point for the baton-greenhouse connector.
 package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	cfg "github.com/conductorone/baton-greenhouse/pkg/config"
 	"github.com/conductorone/baton-greenhouse/pkg/connector"
 	"github.com/conductorone/baton-sdk/pkg/config"
-	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/types"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"go.uber.org/zap"
+	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
 )
 
 var version = "dev"
 
 func main() {
 	ctx := context.Background()
-
-	_, cmd, err := config.DefineConfiguration(
+	config.RunConnector(
 		ctx,
 		"baton-greenhouse",
-		getConnector,
-		cfg.Config,
+		version,
+		cfg.Configuration,
+		connector.New,
+		connectorrunner.WithProvisioningEnabled(),
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilderV2(&connector.Connector{}),
 	)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-
-	cmd.Version = version
-
-	err = cmd.Execute()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
-	}
-}
-
-func getConnector(ctx context.Context, ghc *cfg.Greenhouse) (types.ConnectorServer, error) {
-	l := ctxzap.Extract(ctx)
-	if err := cfg.ValidateConfig(ghc); err != nil {
-		return nil, err
-	}
-
-	cb, err := connector.New(ctx, ghc.On_behalf_of_email, ghc.Username, ghc.BaseUrl)
-	if err != nil {
-		l.Error("error creating connector", zap.Error(err))
-		return nil, err
-	}
-	connector, err := connectorbuilder.NewConnector(ctx, cb)
-	if err != nil {
-		l.Error("error creating connector", zap.Error(err))
-		return nil, err
-	}
-	return connector, nil
 }

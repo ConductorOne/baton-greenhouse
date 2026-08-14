@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	config.Generate("greenhouse", cfg.Config)
+	config.Generate("greenhouse", cfg.Configuration)
 }

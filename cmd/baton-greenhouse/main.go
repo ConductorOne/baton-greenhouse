@@ -19,7 +19,6 @@ func main() {
 		version,
 		cfg.Configuration,
 		connector.New,
-		connectorrunner.WithProvisioningEnabled(),
 		connectorrunner.WithDefaultCapabilitiesConnectorBuilderV2(&connector.Connector{}),
 	)
 }

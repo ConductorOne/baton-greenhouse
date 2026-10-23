@@ -9,7 +9,6 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 )
@@ -18,28 +17,28 @@ type userBuilder struct {
 	client *client.GreenhouseClient
 }
 
-var _ connectorbuilder.AccountManager = &userBuilder{}
+var _ connectorbuilder.AccountManagerV2 = &userBuilder{}
 
 func (b *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return userResourceType
 }
 
-func (b *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (b *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken resource.SyncOpAttrs) ([]*v2.Resource, *resource.SyncOpResults, error) {
 	var userResources []*v2.Resource
 	var outAnnotations annotations.Annotations
 
-	users, rateLimitData, next, err := b.client.ListUsers(ctx, pToken.Token)
+	users, rateLimitData, next, err := b.client.ListUsers(ctx, pToken.PageToken.Token)
 	if err != nil {
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		return nil, "", outAnnotations, fmt.Errorf("cannot list users, error: %w", err)
+		return nil, &resource.SyncOpResults{Annotations: outAnnotations}, fmt.Errorf("cannot list users, error: %w", err)
 	}
 
 	for _, user := range users {
 		userResource, err := parseIntoUserResource(user)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		userResources = append(userResources, userResource)
@@ -47,16 +46,16 @@ func (b *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 
 	outAnnotations.WithRateLimiting(rateLimitData)
 
-	return userResources, next, outAnnotations, nil
+	return userResources, &resource.SyncOpResults{NextPageToken: next, Annotations: outAnnotations}, nil
 }
 
 // Entitlements always returns an empty slice for users.
-func (b *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (b *userBuilder) Entitlements(_ context.Context, _ *v2.Resource, _ resource.SyncOpAttrs) ([]*v2.Entitlement, *resource.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // Grants function will create the Grants for the Roles. This should upgrade performance and reduce sync time.
-func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pToken resource.SyncOpAttrs) ([]*v2.Grant, *resource.SyncOpResults, error) {
 	// TODO: This functions requests all the Job Permissions of users and creates the Grants for the Roles with that data.
 	//  However, users are likely to have assigned roles on jobs that are not 'job_admin' type.
 	//  Creating Grants for them will cause trouble since those entitlements won't be found when trying to put the data together.
@@ -67,9 +66,9 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 	var outAnnotations annotations.Annotations
 	userID := userResource.Id
 
-	tokens, err := client.DeserializeTokens(pToken.Token)
+	tokens, err := client.DeserializeTokens(pToken.PageToken.Token)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	user, rateLimitData, err := b.client.RetrieveUserData(ctx, userResource.Id.Resource)
@@ -77,7 +76,7 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		return nil, "", outAnnotations, fmt.Errorf("cannot retrieve user: %w", err)
+		return nil, &resource.SyncOpResults{Annotations: outAnnotations}, fmt.Errorf("cannot retrieve user: %w", err)
 	}
 	outAnnotations.WithRateLimiting(rateLimitData)
 
@@ -93,7 +92,7 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		membershipGrant := grant.NewGrant(roleResource, rolePermissionName, userID)
 		roleGrants = append(roleGrants, membershipGrant)
 
-		return roleGrants, "", outAnnotations, nil
+		return roleGrants, &resource.SyncOpResults{Annotations: outAnnotations}, nil
 	}
 
 	// All the Job Permissions of the user will be requested in order to create a grant for any role
@@ -103,13 +102,13 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		return nil, "", outAnnotations, err
+		return nil, &resource.SyncOpResults{Annotations: outAnnotations}, err
 	}
 	outAnnotations.WithRateLimiting(rateLimitData)
 
 	uniqueUserRoleIDs, err := extractUniqueUserRolesIDs(userJobPermissions)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 	for _, userRoleID := range uniqueUserRoleIDs {
 		roleResource := &v2.Resource{
@@ -130,13 +129,13 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		return nil, "", outAnnotations, err
+		return nil, &resource.SyncOpResults{Annotations: outAnnotations}, err
 	}
 	outAnnotations.WithRateLimiting(rateLimitData)
 
 	uniqueUserRoleIDs, err = extractUniqueUserRolesIDs(userFutureJobPermissions)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 	for _, userRoleID := range uniqueUserRoleIDs {
 		futureRoleUserID := fmt.Sprintf("future-job:%d", userRoleID)
@@ -157,11 +156,11 @@ func (b *userBuilder) Grants(ctx context.Context, userResource *v2.Resource, pTo
 	} else {
 		nextToken, err = client.SerializeTokens(tokens)
 		if err != nil {
-			return nil, "", outAnnotations, err
+			return nil, &resource.SyncOpResults{Annotations: outAnnotations}, err
 		}
 	}
 
-	return roleGrants, nextToken, outAnnotations, nil
+	return roleGrants, &resource.SyncOpResults{NextPageToken: nextToken, Annotations: outAnnotations}, nil
 }
 
 // CreateAccountCapabilityDetails returns the account provisioning capabilities of this connector.

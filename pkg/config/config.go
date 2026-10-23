@@ -33,7 +33,7 @@ var (
 // Config defines the configuration fields for the Greenhouse connector.
 //
 //go:generate go run ./gen
-var Config = field.NewConfiguration(
+var Configuration = field.NewConfiguration(
 	[]field.SchemaField{
 		usernameField,
 		onBehalfOfField,

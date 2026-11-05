@@ -218,13 +218,13 @@ func (b *userBuilder) CreateAccount(
 		createdUser.ID,
 		[]resource.UserTraitOption{
 			resource.WithEmail(email, true),
-			resource.WithUserProfile(map[string]interface{}{
-				"email":      email,
-				"first_name": firstName,
-				"last_name":  lastName,
-				"id":         createdUser.ID,
-			}),
 		},
+		resource.WithResourceProfile(map[string]interface{}{
+			"email":      email,
+			"first_name": firstName,
+			"last_name":  lastName,
+			"id":         createdUser.ID,
+		}),
 	)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to build resource: %w", err)

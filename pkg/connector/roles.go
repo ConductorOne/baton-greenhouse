@@ -172,15 +172,14 @@ func createRoleResource(roleID, name, roleType string) (*v2.Resource, error) {
 		"type": roleType,
 	}
 
-	roleTraits := []resourceSdk.RoleTraitOption{
-		resourceSdk.WithRoleProfile(profile),
-	}
+	roleTraits := []resourceSdk.RoleTraitOption{}
 
 	return resourceSdk.NewRoleResource(
 		name,
 		roleResourceType,
 		roleID,
 		roleTraits,
+		resourceSdk.WithResourceProfile(profile),
 	)
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/conductorone/baton-greenhouse/pkg/models"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	resourceSdk "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
@@ -35,16 +34,16 @@ func (b *roleBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 	return roleResourceType
 }
 
-func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken resourceSdk.SyncOpAttrs) ([]*v2.Resource, *resourceSdk.SyncOpResults, error) {
 	var roleResources []*v2.Resource
 	var outAnnotations annotations.Annotations
 	logger := ctxzap.Extract(ctx)
-	userRoles, rateLimitData, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.Token)
+	userRoles, rateLimitData, nextPageURL, err := b.client.ListUserRoles(ctx, pToken.PageToken.Token)
 	if err != nil {
 		if rateLimitData != nil {
 			outAnnotations.WithRateLimiting(rateLimitData)
 		}
-		return nil, "", outAnnotations, err
+		return nil, &resourceSdk.SyncOpResults{Annotations: outAnnotations}, err
 	}
 
 	for _, userRole := range userRoles {
@@ -63,7 +62,7 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 				fmt.Sprintf("Role resource creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
 				zap.Error(err),
 			)
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		roleResources = append(roleResources, newRoleResource)
 
@@ -78,7 +77,7 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 				fmt.Sprintf("Role resource (future-job) creation failed. UserRoleID: %d; UserRoleType: %s", userRole.ID, userRole.Type),
 				zap.Error(err),
 			)
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		roleResources = append(roleResources, newRoleResource)
 	}
@@ -90,32 +89,32 @@ func (b *roleBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 		roleTypeSiteAdmin,
 	)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	roleResources = append(roleResources, siteAdminResource)
 
 	outAnnotations.WithRateLimiting(rateLimitData)
-	return roleResources, nextPageURL, outAnnotations, nil
+	return roleResources, &resourceSdk.SyncOpResults{NextPageToken: nextPageURL, Annotations: outAnnotations}, nil
 }
 
-func (b *roleBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (b *roleBuilder) Entitlements(_ context.Context, res *v2.Resource, _ resourceSdk.SyncOpAttrs) ([]*v2.Entitlement, *resourceSdk.SyncOpResults, error) {
 	var roleEntitlements []*v2.Entitlement
 
 	assigmentOptions := []entitlement.EntitlementOption{
 		entitlement.WithGrantableTo(userResourceType),
-		entitlement.WithDescription(resource.Description),
-		entitlement.WithDisplayName(resource.DisplayName),
+		entitlement.WithDescription(res.Description),
+		entitlement.WithDisplayName(res.DisplayName),
 	}
 
-	roleEntitlements = append(roleEntitlements, entitlement.NewPermissionEntitlement(resource, rolePermissionName, assigmentOptions...))
+	roleEntitlements = append(roleEntitlements, entitlement.NewPermissionEntitlement(res, rolePermissionName, assigmentOptions...))
 
-	return roleEntitlements, "", nil, nil
+	return roleEntitlements, &resourceSdk.SyncOpResults{}, nil
 }
 
 // Grants function is implemented in the users.go file.
-func (b *roleBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (b *roleBuilder) Grants(_ context.Context, _ *v2.Resource, _ resourceSdk.SyncOpAttrs) ([]*v2.Grant, *resourceSdk.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 func (b *roleBuilder) Grant(_ context.Context, _ *v2.Resource, _ *v2.Entitlement) (annotations.Annotations, error) {

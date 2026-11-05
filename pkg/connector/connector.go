@@ -7,8 +7,10 @@ import (
 	"io"
 
 	"github.com/conductorone/baton-greenhouse/pkg/client"
+	cfgpkg "github.com/conductorone/baton-greenhouse/pkg/config"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/cli"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 )
 
@@ -18,8 +20,8 @@ type Connector struct {
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		newUserBuilder(d.client),
 		newRoleBuilder(d.client),
 	}
@@ -80,12 +82,17 @@ func (d *Connector) Validate(_ context.Context) (annotations.Annotations, error)
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, onBehalfOf, username, baseURL string) (*Connector, error) {
-	c, err := client.New(ctx, username, onBehalfOf, baseURL)
+// New returns a new instance of the connector.
+//
+// The *cli.ConnectorOpts parameter is part of the V2 entrypoint contract; it
+// carries runtime options such as the sync resource-type filter. It is accepted
+// but not yet read here.
+func New(ctx context.Context, cfg *cfgpkg.Greenhouse, _ *cli.ConnectorOpts) (connectorbuilder.ConnectorBuilderV2, []connectorbuilder.Opt, error) {
+	c, err := client.New(ctx, cfg.Username, cfg.On_behalf_of_email, cfg.BaseUrl)
 	if err != nil {
-		return nil, fmt.Errorf("unable to create a connector, error: %w", err)
+		return nil, nil, fmt.Errorf("unable to create a connector, error: %w", err)
 	}
 	return &Connector{
 		client: c,
-	}, nil
+	}, nil, nil
 }
